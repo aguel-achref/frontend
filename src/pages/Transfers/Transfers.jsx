@@ -1,19 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-
-import {
-    getBanks,
-} from '../../api/bank.api';
-
-import {
-    getBeneficiaries,
-} from '../../api/beneficiary.api';
-
-import {
-    getTransfers,
-    createTransfer,
-    deleteTransfer,
-    getOneTransfer,
-} from '../../api/transfer.api';
+import { useEffect, useState } from 'react';
 
 import PageHeader from '../../components/layout/PageHeader';
 
@@ -27,185 +12,309 @@ import TransferFilters from '../../components/transfers/TransferFilters';
 import TransferSummary from '../../components/transfers/TransferSummary';
 import TransferTable from '../../components/transfers/TransferTable';
 
+import PrintPreview from '../../print/PrintPreview';
+
+import {
+    getBanks,
+} from '../../api/bank.api';
+
+import {
+    getBeneficiaries,
+} from '../../api/beneficiary.api';
+
+import {
+    getSettings,
+} from '../../api/settings.api';
+
+import {
+    getTransfers,
+    getOneTransfer,
+    createTransfer,
+    deleteTransfer,
+} from '../../api/transfer.api';
+
+
 function Transfers() {
+    /* =========================================================
+       DATA
+       ========================================================= */
+
     const [banks, setBanks] = useState([]);
     const [beneficiaries, setBeneficiaries] = useState([]);
     const [transfers, setTransfers] = useState([]);
+    const [settings, setSettings] = useState(null);
+
+    /* =========================================================
+       LOADING
+       ========================================================= */
 
     const [loading, setLoading] = useState(true);
+    const [transfersLoading, setTransfersLoading] =
+        useState(false);
     const [creating, setCreating] = useState(false);
-    const [deleting, setDeleting] = useState(false);
+    const [detailsLoading, setDetailsLoading] =
+        useState(false);
 
-    const [filters, setFilters] = useState({
-        year: new Date().getFullYear(),
-        bank_id: '',
-        search: '',
-    });
+    /* =========================================================
+       MODALS
+       ========================================================= */
+
+    const [createModalOpen, setCreateModalOpen] =
+        useState(false);
+
+    const [detailsModalOpen, setDetailsModalOpen] =
+        useState(false);
+
+    const [printModalOpen, setPrintModalOpen] =
+        useState(false);
+
+    /* =========================================================
+       SELECTED TRANSFER
+       ========================================================= */
 
     const [selectedTransfer, setSelectedTransfer] =
         useState(null);
 
-    const [showCreateForm, setShowCreateForm] =
-        useState(false);
+    const [selectedBank, setSelectedBank] =
+        useState(null);
 
-    const [showDetails, setShowDetails] =
-        useState(false);
+    /* =========================================================
+       FILTERS
+       ========================================================= */
 
-    const [toast, setToast] = useState({
-        message: '',
-        type: 'success',
+    const [filters, setFilters] = useState({
+        year: '',
+        bank_id: '',
+        search: '',
     });
 
-    const showToast = useCallback(
-        (message, type = 'success') => {
-            setToast({
-                message,
-                type,
-            });
+    /* =========================================================
+       TOAST
+       ========================================================= */
 
-            setTimeout(() => {
-                setToast({
-                    message: '',
-                    type: 'success',
-                });
-            }, 4000);
-        },
-        []
-    );
+    const [toast, setToast] = useState(null);
 
-    const loadInitialData = useCallback(
-        async () => {
-            try {
-                setLoading(true);
+    const showToast = (
+        message,
+        type = 'success'
+    ) => {
+        setToast({
+            message,
+            type,
+        });
+    };
 
-                const [
-                    banksResponse,
-                    beneficiariesResponse,
-                ] = await Promise.all([
-                    getBanks(),
-                    getBeneficiaries(),
-                ]);
 
-                if (banksResponse?.success) {
-                    setBanks(
-                        banksResponse.data || []
-                    );
-                }
+    /* =========================================================
+       LOAD INITIAL DATA
+       ========================================================= */
 
-                if (
-                    beneficiariesResponse?.success
-                ) {
-                    setBeneficiaries(
-                        beneficiariesResponse.data ||
-                            []
-                    );
-                }
-            } catch (error) {
-                console.error(
-                    'Error loading transfer data:',
-                    error
+    const loadInitialData = async () => {
+        try {
+            setLoading(true);
+
+            const [
+                banksResponse,
+                beneficiariesResponse,
+                settingsResponse,
+            ] = await Promise.all([
+                getBanks(),
+                getBeneficiaries(),
+                getSettings(),
+            ]);
+
+            if (banksResponse.success) {
+                setBanks(
+                    banksResponse.data || []
                 );
-
+            } else {
                 showToast(
-                    'Impossible de charger les données.',
-                    'error'
-                );
-            } finally {
-                setLoading(false);
-            }
-        },
-        [showToast]
-    );
-
-    const loadTransfers =
-        useCallback(async () => {
-            try {
-                const params = {};
-
-                if (filters.year) {
-                    params.year =
-                        filters.year;
-                }
-
-                if (filters.bank_id) {
-                    params.bank_id =
-                        filters.bank_id;
-                }
-
-                if (filters.search?.trim()) {
-                    params.search =
-                        filters.search.trim();
-                }
-
-                const response =
-                    await getTransfers(params);
-
-                if (response?.success) {
-                    setTransfers(
-                        response.data || []
-                    );
-                } else {
-                    setTransfers([]);
-                }
-            } catch (error) {
-                console.error(
-                    'Error loading transfers:',
-                    error
-                );
-
-                showToast(
-                    'Impossible de charger l’historique.',
+                    banksResponse.error ||
+                        'Impossible de charger les banques.',
                     'error'
                 );
             }
-        }, [filters, showToast]);
+
+            if (beneficiariesResponse.success) {
+                setBeneficiaries(
+                    beneficiariesResponse.data || []
+                );
+            } else {
+                showToast(
+                    beneficiariesResponse.error ||
+                        'Impossible de charger les bénéficiaires.',
+                    'error'
+                );
+            }
+
+            if (settingsResponse.success) {
+                setSettings(
+                    settingsResponse.data || null
+                );
+            } else {
+                showToast(
+                    settingsResponse.error ||
+                        'Impossible de charger les paramètres.',
+                    'error'
+                );
+            }
+        } catch (error) {
+            console.error(
+                'Error loading transfer page:',
+                error
+            );
+
+            showToast(
+                error.response?.data?.error ||
+                    'Erreur lors du chargement des données.',
+                'error'
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
+    /* =========================================================
+       LOAD TRANSFERS
+       ========================================================= */
+
+    const loadTransfers = async () => {
+        try {
+            setTransfersLoading(true);
+
+            const params = {};
+
+            if (filters.year) {
+                params.year = filters.year;
+            }
+
+            if (filters.bank_id) {
+                params.bank_id = filters.bank_id;
+            }
+
+            if (filters.search?.trim()) {
+                params.search = filters.search.trim();
+            }
+
+            const response = await getTransfers(
+                params
+            );
+
+            if (response.success) {
+                setTransfers(
+                    response.data || []
+                );
+            } else {
+                showToast(
+                    response.error ||
+                        'Impossible de charger l’historique.',
+                    'error'
+                );
+            }
+        } catch (error) {
+            console.error(
+                'Error loading transfers:',
+                error
+            );
+
+            showToast(
+                error.response?.data?.error ||
+                    'Erreur lors du chargement des virements.',
+                'error'
+            );
+        } finally {
+            setTransfersLoading(false);
+        }
+    };
+
+
+    /* =========================================================
+       INITIAL LOAD
+       ========================================================= */
 
     useEffect(() => {
         loadInitialData();
-    }, [loadInitialData]);
+    }, []);
+
+
+    /* =========================================================
+       LOAD TRANSFERS WHEN FILTERS CHANGE
+       ========================================================= */
 
     useEffect(() => {
-        loadTransfers();
-    }, [loadTransfers]);
+        if (!loading) {
+            loadTransfers();
+        }
+    }, [
+        filters.year,
+        filters.bank_id,
+        filters.search,
+        loading,
+    ]);
+
+
+    /* =========================================================
+       FILTER HANDLER
+       ========================================================= */
+
+    const handleFiltersChange = (
+        nextFilters
+    ) => {
+        setFilters(nextFilters);
+    };
+
+
+    const handleResetFilters = () => {
+        setFilters({
+            year: '',
+            bank_id: '',
+            search: '',
+        });
+    };
+
+
+    /* =========================================================
+       CREATE TRANSFER
+       ========================================================= */
 
     const handleCreateTransfer = async (
-        transferData
+        payload
     ) => {
         try {
             setCreating(true);
 
             const response =
-                await createTransfer(
-                    transferData
+                await createTransfer(payload);
+
+            if (!response.success) {
+                showToast(
+                    response.error ||
+                        'Impossible de créer le virement.',
+                    'error'
                 );
 
-            if (!response?.success) {
-                throw new Error(
-                    response?.message ||
-                        'Impossible de créer le virement.'
-                );
+                return;
             }
 
-            showToast(
-                `Virement ${response.data?.reference || ''} créé avec succès.`
-            );
-
-            setShowCreateForm(false);
-
             await loadTransfers();
+
+            setCreateModalOpen(false);
+
+            showToast(
+                response.message ||
+                    'Virement créé avec succès.',
+                'success'
+            );
         } catch (error) {
             console.error(
                 'Error creating transfer:',
                 error
             );
 
-            const message =
-                error?.response?.data?.message ||
-                error?.message ||
-                'Impossible de créer le virement.';
-
             showToast(
-                message,
+                error.response?.data?.error ||
+                    'Erreur lors de la création du virement.',
                 'error'
             );
         } finally {
@@ -213,11 +322,16 @@ function Transfers() {
         }
     };
 
+
+    /* =========================================================
+       DELETE TRANSFER
+       ========================================================= */
+
     const handleDeleteTransfer = async (
         transfer
     ) => {
         const confirmed = window.confirm(
-            `Voulez-vous vraiment supprimer le virement ${transfer.reference || ''} ?`
+            `Voulez-vous vraiment supprimer le virement ${transfer.reference} ?`
         );
 
         if (!confirmed) {
@@ -225,150 +339,285 @@ function Transfers() {
         }
 
         try {
-            setDeleting(true);
-
             const response =
                 await deleteTransfer(
                     transfer.id
                 );
 
-            if (!response?.success) {
-                throw new Error(
-                    response?.message ||
-                        'Impossible de supprimer le virement.'
+            if (!response.success) {
+                showToast(
+                    response.error ||
+                        'Impossible de supprimer le virement.',
+                    'error'
                 );
+
+                return;
             }
 
-            showToast(
-                'Virement supprimé avec succès.'
-            );
-
             await loadTransfers();
+
+            showToast(
+                'Virement supprimé avec succès.',
+                'success'
+            );
         } catch (error) {
             console.error(
                 'Error deleting transfer:',
                 error
             );
 
-            const message =
-                error?.response?.data?.message ||
-                error?.message ||
-                'Impossible de supprimer le virement.';
-
             showToast(
-                message,
+                error.response?.data?.error ||
+                    'Erreur lors de la suppression du virement.',
                 'error'
             );
-        } finally {
-            setDeleting(false);
         }
     };
+
+
+    /* =========================================================
+       GET BANK FOR TRANSFER
+       ========================================================= */
+
+    const findBankForTransfer = (
+        transfer
+    ) => {
+        if (!transfer) {
+            return null;
+        }
+
+        return banks.find(
+            (bank) =>
+                Number(bank.id) ===
+                Number(transfer.bank_id)
+        ) || null;
+    };
+
+
+    /* =========================================================
+       OPEN DETAILS
+       ========================================================= */
 
     const handleViewTransfer = async (
         transfer
     ) => {
         try {
+            setDetailsLoading(true);
+
+            setDetailsModalOpen(true);
+
             const response =
                 await getOneTransfer(
                     transfer.id
                 );
 
-            if (response?.success) {
-                setSelectedTransfer(
-                    response.data
+            if (!response.success) {
+                showToast(
+                    response.error ||
+                        'Impossible de charger le virement.',
+                    'error'
                 );
-            } else {
-                setSelectedTransfer(
-                    transfer
-                );
+
+                setDetailsModalOpen(false);
+
+                return;
             }
+
+            const completeTransfer =
+                response.data;
+
+            setSelectedTransfer(
+                completeTransfer
+            );
+
+            setSelectedBank(
+                findBankForTransfer(
+                    completeTransfer
+                )
+            );
         } catch (error) {
             console.error(
                 'Error loading transfer:',
                 error
             );
 
-            setSelectedTransfer(
-                transfer
+            showToast(
+                error.response?.data?.error ||
+                    'Erreur lors du chargement du virement.',
+                'error'
             );
+
+            setDetailsModalOpen(false);
+        } finally {
+            setDetailsLoading(false);
+        }
+    };
+
+
+    /* =========================================================
+       CLOSE DETAILS
+       ========================================================= */
+
+    const closeDetailsModal = () => {
+        if (detailsLoading) {
+            return;
         }
 
-        setShowDetails(true);
+        setDetailsModalOpen(false);
+        setSelectedTransfer(null);
+        setSelectedBank(null);
     };
 
-    const handleResetFilters = () => {
-        setFilters({
-            year: new Date().getFullYear(),
-            bank_id: '',
-            search: '',
-        });
-    };
 
-    const selectedBank = useMemo(() => {
+    /* =========================================================
+       OPEN PRINT
+       ========================================================= */
+
+    const handleOpenPrint = () => {
         if (!selectedTransfer) {
-            return null;
+            showToast(
+                'Aucun virement sélectionné.',
+                'error'
+            );
+
+            return;
         }
 
-        return banks.find(
-            (bank) =>
-                String(bank.id) ===
-                String(
-                    selectedTransfer.bank_id
-                )
-        );
-    }, [
-        banks,
-        selectedTransfer,
-    ]);
-
-    const selectedBeneficiary =
-        useMemo(() => {
-            if (!selectedTransfer) {
-                return null;
-            }
-
-            return beneficiaries.find(
-                (beneficiary) =>
-                    String(
-                        beneficiary.id
-                    ) ===
-                    String(
-                        selectedTransfer.beneficiary_id
-                    )
+        const bank =
+            selectedBank ||
+            findBankForTransfer(
+                selectedTransfer
             );
-        }, [
-            beneficiaries,
-            selectedTransfer,
-        ]);
+
+        if (!bank) {
+            showToast(
+                'Impossible de déterminer la banque du virement.',
+                'error'
+            );
+
+            return;
+        }
+
+        setSelectedBank(bank);
+
+        setPrintModalOpen(true);
+    };
+
+
+    /* =========================================================
+       CLOSE PRINT
+       ========================================================= */
+
+    const handleClosePrint = () => {
+        setPrintModalOpen(false);
+    };
+
+
+    /* =========================================================
+       PRINT DOCUMENT
+       ========================================================= */
+
+    const handlePrint = () => {
+        window.print();
+    };
+
+
+    /* =========================================================
+       DUPLICATE TRANSFER
+       ========================================================= */
+
+    const handleDuplicateTransfer = () => {
+        if (!selectedTransfer) {
+            return;
+        }
+
+        setDetailsModalOpen(false);
+
+        setCreateModalOpen(true);
+
+        showToast(
+            'Vous pouvez créer un nouveau virement à partir des informations précédentes.',
+            'info'
+        );
+    };
+
+
+    /* =========================================================
+       STATISTICS
+       ========================================================= */
+
+    const totalTransfers =
+        transfers.length;
+
+    const totalAmount =
+        transfers.reduce(
+            (total, transfer) =>
+                total +
+                Number(
+                    transfer.amount || 0
+                ),
+            0
+        );
+
+    const activeBanks =
+        banks.filter(
+            (bank) =>
+                Boolean(bank.is_active)
+        ).length;
+
+    const beneficiaryCount =
+        beneficiaries.length;
+
+
+    /* =========================================================
+       RENDER
+       ========================================================= */
 
     return (
         <div className="page transfers-page">
             <PageHeader
                 title="Virements"
-                description="Créez et consultez vos virements internationaux."
-                action={
+                description="Créez, consultez et imprimez vos ordres de virement."
+                actions={
                     <Button
-                        variant="primary"
-                        icon="+"
                         onClick={() =>
-                            setShowCreateForm(
-                                true
-                            )
+                            setCreateModalOpen(true)
                         }
                     >
-                        Nouveau virement
+                        + Nouveau virement
                     </Button>
                 }
             />
 
+
+            {/* =================================================
+                MINI STATS
+                ================================================= */}
+
             <div className="transfer-page-stats">
                 <div className="transfer-mini-stat">
                     <span>
-                        Total affiché
+                        Virements affichés
                     </span>
 
                     <strong>
-                        {transfers.length}
+                        {totalTransfers}
+                    </strong>
+                </div>
+
+                <div className="transfer-mini-stat">
+                    <span>
+                        Montant total
+                    </span>
+
+                    <strong>
+                        {totalAmount.toLocaleString(
+                            'fr-FR',
+                            {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                            }
+                        )}
                     </strong>
                 </div>
 
@@ -378,17 +627,7 @@ function Transfers() {
                     </span>
 
                     <strong>
-                        {
-                            banks.filter(
-                                (bank) =>
-                                    bank.is_active ===
-                                        true ||
-                                    bank.is_active ===
-                                        1 ||
-                                    bank.is_active ===
-                                        undefined
-                            ).length
-                        }
+                        {activeBanks}
                     </strong>
                 </div>
 
@@ -398,48 +637,55 @@ function Transfers() {
                     </span>
 
                     <strong>
-                        {beneficiaries.length}
+                        {beneficiaryCount}
                     </strong>
                 </div>
             </div>
 
-            <TransferFilters
-                filters={filters}
-                onChange={setFilters}
-                onReset={
-                    handleResetFilters
-                }
-                banks={banks}
-            />
+
+            {/* =================================================
+                HISTORY
+                ================================================= */}
 
             <Card
                 title="Historique des virements"
-                description="Consultez les opérations enregistrées."
-                padding={false}
+                description="Consultez et recherchez les virements enregistrés."
             >
+                <TransferFilters
+                    filters={filters}
+                    banks={banks}
+                    onChange={
+                        handleFiltersChange
+                    }
+                    onReset={
+                        handleResetFilters
+                    }
+                />
+
                 <TransferTable
                     transfers={transfers}
-                    loading={loading}
-                    onDelete={
-                        handleDeleteTransfer
-                    }
+                    loading={transfersLoading}
                     onView={
                         handleViewTransfer
+                    }
+                    onDelete={
+                        handleDeleteTransfer
                     }
                 />
             </Card>
 
+
+            {/* =================================================
+                CREATE MODAL
+                ================================================= */}
+
             <Modal
-                open={showCreateForm}
-                onClose={() => {
-                    if (!creating) {
-                        setShowCreateForm(
-                            false
-                        );
-                    }
-                }}
+                open={createModalOpen}
+                onClose={() =>
+                    setCreateModalOpen(false)
+                }
                 title="Nouveau virement"
-                description="Renseignez les informations du virement."
+                description="Saisissez les informations du nouvel ordre de virement."
                 size="large"
             >
                 <TransferForm
@@ -451,62 +697,198 @@ function Transfers() {
                         handleCreateTransfer
                     }
                     loading={creating}
+                    onCancel={() =>
+                        setCreateModalOpen(false)
+                    }
                 />
             </Modal>
 
+
+            {/* =================================================
+                DETAILS MODAL
+                ================================================= */}
+
             <Modal
-                open={showDetails}
-                onClose={() =>
-                    setShowDetails(false)
+                open={detailsModalOpen}
+                onClose={
+                    closeDetailsModal
                 }
                 title={
                     selectedTransfer
-                        ? `Virement ${selectedTransfer.reference || ''}`
-                        : 'Détail du virement'
+                        ? `Virement ${selectedTransfer.reference}`
+                        : 'Détails du virement'
                 }
-                description="Informations complètes du virement."
+                description="Consultez les informations complètes du virement."
                 size="large"
             >
-                {selectedTransfer && (
-                    <TransferSummary
-                        transfer={
-                            selectedTransfer
-                        }
-                        bank={selectedBank}
-                        beneficiary={
-                            selectedBeneficiary
-                        }
-                    />
+                {detailsLoading ? (
+                    <div className="operation-overlay">
+                        <div className="operation-loader">
+                            <div className="loading-spinner" />
+
+                            <span>
+                                Chargement du virement...
+                            </span>
+                        </div>
+                    </div>
+                ) : selectedTransfer ? (
+                    <>
+                        <TransferSummary
+                            transfer={
+                                selectedTransfer
+                            }
+                            bank={
+                                selectedBank
+                            }
+                        />
+
+                        <div className="transfer-details-actions">
+                            <Button
+                                variant="secondary"
+                                onClick={
+                                    handleDuplicateTransfer
+                                }
+                            >
+                                Dupliquer
+                            </Button>
+
+                            <Button
+                                variant="secondary"
+                                onClick={
+                                    handleOpenPrint
+                                }
+                            >
+                                Aperçu / Imprimer
+                            </Button>
+
+                            <Button
+                                variant="danger"
+                                onClick={() => {
+                                    handleDeleteTransfer(
+                                        selectedTransfer
+                                    );
+
+                                    closeDetailsModal();
+                                }}
+                            >
+                                Supprimer
+                            </Button>
+                        </div>
+                    </>
+                ) : null}
+            </Modal>
+
+
+            {/* =================================================
+                PRINT MODAL
+                ================================================= */}
+
+            <Modal
+                open={printModalOpen}
+                onClose={
+                    handleClosePrint
+                }
+                title={
+                    selectedTransfer
+                        ? `Impression — ${selectedTransfer.reference}`
+                        : 'Impression'
+                }
+                description={
+                    selectedBank
+                        ? `Modèle : ${selectedBank.template || 'GENERIC'}`
+                        : ''
+                }
+                size="large"
+            >
+                {selectedTransfer &&
+                selectedBank ? (
+                    <>
+                        <div className="print-preview-toolbar">
+                            <div>
+                                <strong>
+                                    Aperçu du document
+                                </strong>
+
+                                <span>
+                                    {
+                                        selectedBank.name
+                                    }{' '}
+                                    —{' '}
+                                    {
+                                        selectedBank.template
+                                    }
+                                </span>
+                            </div>
+
+                            <div>
+                                <Button
+                                    variant="secondary"
+                                    onClick={
+                                        handleClosePrint
+                                    }
+                                >
+                                    Fermer
+                                </Button>
+
+                                <Button
+                                    onClick={
+                                        handlePrint
+                                    }
+                                >
+                                    Imprimer
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div
+                            id="print-root"
+                            className="print-preview-container"
+                        >
+                            <PrintPreview
+                                transfer={
+                                    selectedTransfer
+                                }
+                                bank={
+                                    selectedBank
+                                }
+                                settings={
+                                    settings
+                                }
+                            />
+                        </div>
+                    </>
+                ) : (
+                    <div className="empty-state">
+                        <h3>
+                            Document indisponible
+                        </h3>
+
+                        <p>
+                            Les informations nécessaires
+                            à l'impression ne sont pas
+                            disponibles.
+                        </p>
+                    </div>
                 )}
             </Modal>
 
-            {deleting && (
-                <div className="operation-overlay">
-                    <div className="operation-loader">
-                        <div className="loading-spinner" />
 
-                        <span>
-                            Suppression...
-                        </span>
-                    </div>
-                </div>
-            )}
+            {/* =================================================
+                TOAST
+                ================================================= */}
 
-            {toast.message && (
-                <div className="toast-container">
-                    <Toast
-                        message={
-                            toast.message
-                        }
-                        type={toast.type}
-                        onClose={() =>
-                            setToast({
-                                message: '',
-                                type: 'success',
-                            })
-                        }
-                    />
-                </div>
+            {toast && (
+                <Toast
+                    message={
+                        toast.message
+                    }
+                    type={
+                        toast.type
+                    }
+                    onClose={() =>
+                        setToast(null)
+                    }
+                />
             )}
         </div>
     );

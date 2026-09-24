@@ -1,59 +1,65 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+
+import PageHeader from '../../components/layout/PageHeader';
+
+import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
+import Modal from '../../components/ui/Modal';
+import Toast from '../../components/ui/Toast';
+import Input from '../../components/ui/Input';
+
+import BeneficiaryForm from '../../components/beneficiaries/BeneficiaryForm';
+import BeneficiaryTable from '../../components/beneficiaries/BeneficiaryTable';
 
 import {
     getBeneficiaries,
     createBeneficiary,
     updateBeneficiary,
-    deleteBeneficiary
+    deleteBeneficiary,
 } from '../../api/beneficiary.api';
 
-const emptyForm = {
-    name: '',
-    address: '',
-    city: '',
-    country: '',
-    iban: '',
-    bank_name: '',
-    swift: '',
-    bank_address: '',
-    intermediary_bank: '',
-    intermediary_swift: ''
-};
-
 function Beneficiaries() {
-
     const [beneficiaries, setBeneficiaries] = useState([]);
-    const [form, setForm] = useState(emptyForm);
-
-    const [editingId, setEditingId] = useState(null);
-
     const [loading, setLoading] = useState(true);
+
+    const [search, setSearch] = useState('');
+
+    const [modalOpen, setModalOpen] = useState(false);
+    const [selectedBeneficiary, setSelectedBeneficiary] = useState(null);
     const [saving, setSaving] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
+
+    const [toast, setToast] = useState(null);
+
+    const showToast = (message, type = 'success') => {
+        setToast({
+            message,
+            type,
+        });
+    };
 
     const loadBeneficiaries = async () => {
-
         try {
-
             setLoading(true);
-            setError('');
 
             const response = await getBeneficiaries();
 
-            setBeneficiaries(response.data || []);
+            if (response.success) {
+                setBeneficiaries(response.data || []);
+            } else {
+                showToast(
+                    response.error || 'Impossible de charger les bénéficiaires.',
+                    'error'
+                );
+            }
+        } catch (error) {
+            console.error(error);
 
-        } catch (err) {
-
-            console.error(err);
-
-            setError(
-                err.response?.data?.message ||
-                'Impossible de récupérer les bénéficiaires'
+            showToast(
+                error.response?.data?.error ||
+                    'Erreur lors du chargement des bénéficiaires.',
+                'error'
             );
-
         } finally {
-
             setLoading(false);
         }
     };
@@ -62,99 +68,102 @@ function Beneficiaries() {
         loadBeneficiaries();
     }, []);
 
-    const handleChange = (e) => {
+    const filteredBeneficiaries = useMemo(() => {
+        const value = search.trim().toLowerCase();
 
-        const { name, value } = e.target;
+        if (!value) {
+            return beneficiaries;
+        }
 
-        setForm((previous) => ({
-            ...previous,
-            [name]: value
-        }));
+        return beneficiaries.filter((beneficiary) => {
+            return [
+                beneficiary.name,
+                beneficiary.country,
+                beneficiary.city,
+                beneficiary.bank_name,
+                beneficiary.iban,
+                beneficiary.swift,
+            ]
+                .filter(Boolean)
+                .some((field) =>
+                    String(field)
+                        .toLowerCase()
+                        .includes(value)
+                );
+        });
+    }, [beneficiaries, search]);
+
+    const openCreateModal = () => {
+        setSelectedBeneficiary(null);
+        setModalOpen(true);
     };
 
-    const resetForm = () => {
-        setForm(emptyForm);
-        setEditingId(null);
+    const openEditModal = (beneficiary) => {
+        setSelectedBeneficiary(beneficiary);
+        setModalOpen(true);
     };
 
-    const handleSubmit = async (e) => {
+    const closeModal = () => {
+        if (saving) {
+            return;
+        }
 
-        e.preventDefault();
+        setModalOpen(false);
+        setSelectedBeneficiary(null);
+    };
 
+    const handleSubmit = async (payload) => {
         try {
-
             setSaving(true);
-            setError('');
-            setSuccess('');
 
-            if (editingId) {
+            let response;
 
-                await updateBeneficiary(
-                    editingId,
-                    form
+            if (selectedBeneficiary) {
+                response = await updateBeneficiary(
+                    selectedBeneficiary.id,
+                    payload
                 );
-
-                setSuccess(
-                    'Bénéficiaire modifié avec succès.'
-                );
-
             } else {
-
-                await createBeneficiary(form);
-
-                setSuccess(
-                    'Bénéficiaire créé avec succès.'
-                );
+                response = await createBeneficiary(payload);
             }
 
-            resetForm();
+            if (!response.success) {
+                showToast(
+                    response.error ||
+                        'Une erreur est survenue.',
+                    'error'
+                );
+
+                return;
+            }
 
             await loadBeneficiaries();
 
-        } catch (err) {
+            setModalOpen(false);
+            setSelectedBeneficiary(null);
 
-            console.error(err);
-
-            setError(
-                err.response?.data?.message ||
-                'Une erreur est survenue'
+            showToast(
+                selectedBeneficiary
+                    ? 'Bénéficiaire modifié avec succès.'
+                    : 'Bénéficiaire créé avec succès.',
+                'success'
             );
+        } catch (error) {
+            console.error(error);
 
+            showToast(
+                error.response?.data?.error ||
+                    'Impossible d’enregistrer le bénéficiaire.',
+                'error'
+            );
         } finally {
-
             setSaving(false);
         }
     };
 
-    const handleEdit = (beneficiary) => {
-
-        setEditingId(beneficiary.id);
-
-        setForm({
-            name: beneficiary.name || '',
-            address: beneficiary.address || '',
-            city: beneficiary.city || '',
-            country: beneficiary.country || '',
-            iban: beneficiary.iban || '',
-            bank_name: beneficiary.bank_name || '',
-            swift: beneficiary.swift || '',
-            bank_address: beneficiary.bank_address || '',
-            intermediary_bank:
-                beneficiary.intermediary_bank || '',
-            intermediary_swift:
-                beneficiary.intermediary_swift || ''
-        });
-
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
-    };
-
-    const handleDelete = async (id) => {
-
+    const handleDelete = async (beneficiary) => {
         const confirmed = window.confirm(
-            'Voulez-vous vraiment supprimer ce bénéficiaire ?'
+            `Voulez-vous vraiment supprimer le bénéficiaire "${beneficiary.name}" ?`
         );
 
         if (!confirmed) {
@@ -162,222 +171,124 @@ function Beneficiaries() {
         }
 
         try {
-
-            setError('');
-            setSuccess('');
-
-            await deleteBeneficiary(id);
-
-            setSuccess(
-                'Bénéficiaire supprimé avec succès.'
+            const response = await deleteBeneficiary(
+                beneficiary.id
             );
+
+            if (!response.success) {
+                showToast(
+                    response.error ||
+                        'Impossible de supprimer le bénéficiaire.',
+                    'error'
+                );
+
+                return;
+            }
 
             await loadBeneficiaries();
 
-        } catch (err) {
+            showToast(
+                'Bénéficiaire supprimé avec succès.',
+                'success'
+            );
+        } catch (error) {
+            console.error(error);
 
-            console.error(err);
-
-            setError(
-                err.response?.data?.message ||
-                'Impossible de supprimer le bénéficiaire'
+            showToast(
+                error.response?.data?.error ||
+                    'Erreur lors de la suppression du bénéficiaire.',
+                'error'
             );
         }
     };
 
-    if (loading) {
-        return <div>Chargement...</div>;
-    }
-
     return (
-        <div>
+        <div className="page beneficiaries-page">
+            <PageHeader
+                title="Bénéficiaires"
+                description="Gérez les bénéficiaires utilisés pour vos virements internationaux."
+                actions={
+                    <Button onClick={openCreateModal}>
+                        + Nouveau bénéficiaire
+                    </Button>
+                }
+            />
 
-            <h1>
-                {editingId
-                    ? 'Modifier le bénéficiaire'
-                    : 'Nouveau bénéficiaire'}
-            </h1>
-
-            {error && (
-                <div style={{ color: 'red' }}>
-                    {error}
+            <div className="beneficiary-stats">
+                <div className="beneficiary-stat-card">
+                    <span>Total bénéficiaires</span>
+                    <strong>{beneficiaries.length}</strong>
                 </div>
-            )}
 
-            {success && (
-                <div style={{ color: 'green' }}>
-                    {success}
+                <div className="beneficiary-stat-card">
+                    <span>Résultats affichés</span>
+                    <strong>
+                        {filteredBeneficiaries.length}
+                    </strong>
                 </div>
+            </div>
+
+            <Card
+                title="Liste des bénéficiaires"
+                description="Recherchez et gérez vos bénéficiaires."
+            >
+                <div className="beneficiary-toolbar">
+                    <Input
+                        value={search}
+                        onChange={(event) =>
+                            setSearch(event.target.value)
+                        }
+                        placeholder="Rechercher un nom, IBAN, banque..."
+                    />
+
+                    {search && (
+                        <Button
+                            variant="secondary"
+                            onClick={() => setSearch('')}
+                        >
+                            Réinitialiser
+                        </Button>
+                    )}
+                </div>
+
+                <BeneficiaryTable
+                    beneficiaries={filteredBeneficiaries}
+                    loading={loading}
+                    onEdit={openEditModal}
+                    onDelete={handleDelete}
+                />
+            </Card>
+
+            <Modal
+                open={modalOpen}
+                onClose={closeModal}
+                title={
+                    selectedBeneficiary
+                        ? 'Modifier le bénéficiaire'
+                        : 'Nouveau bénéficiaire'
+                }
+                description={
+                    selectedBeneficiary
+                        ? 'Modifiez les informations du bénéficiaire.'
+                        : 'Ajoutez un nouveau bénéficiaire bancaire.'
+                }
+                size="large"
+            >
+                <BeneficiaryForm
+                    beneficiary={selectedBeneficiary}
+                    onSubmit={handleSubmit}
+                    onCancel={closeModal}
+                    loading={saving}
+                />
+            </Modal>
+
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={() => setToast(null)}
+                />
             )}
-
-            <form onSubmit={handleSubmit}>
-
-                <input
-                    name="name"
-                    placeholder="Nom"
-                    value={form.name}
-                    onChange={handleChange}
-                    required
-                />
-
-                <input
-                    name="address"
-                    placeholder="Adresse"
-                    value={form.address}
-                    onChange={handleChange}
-                />
-
-                <input
-                    name="city"
-                    placeholder="Ville"
-                    value={form.city}
-                    onChange={handleChange}
-                />
-
-                <input
-                    name="country"
-                    placeholder="Pays"
-                    value={form.country}
-                    onChange={handleChange}
-                />
-
-                <input
-                    name="iban"
-                    placeholder="IBAN"
-                    value={form.iban}
-                    onChange={handleChange}
-                />
-
-                <input
-                    name="bank_name"
-                    placeholder="Banque"
-                    value={form.bank_name}
-                    onChange={handleChange}
-                />
-
-                <input
-                    name="swift"
-                    placeholder="SWIFT"
-                    value={form.swift}
-                    onChange={handleChange}
-                />
-
-                <input
-                    name="bank_address"
-                    placeholder="Adresse banque"
-                    value={form.bank_address}
-                    onChange={handleChange}
-                />
-
-                <input
-                    name="intermediary_bank"
-                    placeholder="Banque intermédiaire"
-                    value={form.intermediary_bank}
-                    onChange={handleChange}
-                />
-
-                <input
-                    name="intermediary_swift"
-                    placeholder="SWIFT intermédiaire"
-                    value={form.intermediary_swift}
-                    onChange={handleChange}
-                />
-
-                <button
-                    type="submit"
-                    disabled={saving}
-                >
-                    {saving
-                        ? 'Enregistrement...'
-                        : editingId
-                            ? 'Modifier'
-                            : 'Ajouter'}
-                </button>
-
-                {editingId && (
-                    <button
-                        type="button"
-                        onClick={resetForm}
-                    >
-                        Annuler
-                    </button>
-                )}
-
-            </form>
-
-            <hr />
-
-            <h2>Liste des bénéficiaires</h2>
-
-            <table>
-
-                <thead>
-                    <tr>
-                        <th>Nom</th>
-                        <th>Pays</th>
-                        <th>IBAN</th>
-                        <th>Banque</th>
-                        <th>SWIFT</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-
-                    {beneficiaries.map((beneficiary) => (
-
-                        <tr key={beneficiary.id}>
-
-                            <td>
-                                {beneficiary.name}
-                            </td>
-
-                            <td>
-                                {beneficiary.country}
-                            </td>
-
-                            <td>
-                                {beneficiary.iban}
-                            </td>
-
-                            <td>
-                                {beneficiary.bank_name}
-                            </td>
-
-                            <td>
-                                {beneficiary.swift}
-                            </td>
-
-                            <td>
-
-                                <button
-                                    onClick={() =>
-                                        handleEdit(beneficiary)
-                                    }
-                                >
-                                    Modifier
-                                </button>
-
-                                <button
-                                    onClick={() =>
-                                        handleDelete(
-                                            beneficiary.id
-                                        )
-                                    }
-                                >
-                                    Supprimer
-                                </button>
-
-                            </td>
-
-                        </tr>
-
-                    ))}
-
-                </tbody>
-
-            </table>
-
         </div>
     );
 }

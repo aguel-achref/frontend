@@ -1,3 +1,4 @@
+import Badge from '../ui/Badge';
 import Button from '../ui/Button';
 import EmptyState from '../ui/EmptyState';
 
@@ -5,12 +6,13 @@ function BeneficiaryTable({
     beneficiaries = [],
     loading = false,
     onEdit,
-    onDelete
+    onDelete,
 }) {
     if (loading) {
         return (
-            <div className="table-loading">
-                Chargement des bénéficiaires...
+            <div className="beneficiary-table-loading">
+                <div className="loading-spinner" />
+                <span>Chargement des bénéficiaires...</span>
             </div>
         );
     }
@@ -20,20 +22,20 @@ function BeneficiaryTable({
             <EmptyState
                 icon="👤"
                 title="Aucun bénéficiaire"
-                description="Ajoutez votre premier bénéficiaire pour commencer."
+                description="Aucun bénéficiaire ne correspond à votre recherche."
             />
         );
     }
 
     return (
-        <div className="data-table-wrapper">
-            <table className="data-table">
+        <div className="table-wrapper">
+            <table className="data-table beneficiary-table">
                 <thead>
                     <tr>
                         <th>Bénéficiaire</th>
                         <th>Pays</th>
                         <th>Banque</th>
-                        <th>IBAN / RIB</th>
+                        <th>IBAN</th>
                         <th>SWIFT</th>
                         <th>Actions</th>
                     </tr>
@@ -43,15 +45,25 @@ function BeneficiaryTable({
                     {beneficiaries.map((beneficiary) => (
                         <tr key={beneficiary.id}>
                             <td>
-                                <div className="table-primary">
-                                    {beneficiary.name}
-                                </div>
-
-                                {beneficiary.city && (
-                                    <div className="table-secondary">
-                                        {beneficiary.city}
+                                <div className="beneficiary-name-cell">
+                                    <div className="beneficiary-avatar">
+                                        {beneficiary.name
+                                            ?.charAt(0)
+                                            ?.toUpperCase() || '?'}
                                     </div>
-                                )}
+
+                                    <div>
+                                        <strong>
+                                            {beneficiary.name}
+                                        </strong>
+
+                                        {beneficiary.city && (
+                                            <span>
+                                                {beneficiary.city}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
                             </td>
 
                             <td>
@@ -59,22 +71,43 @@ function BeneficiaryTable({
                             </td>
 
                             <td>
-                                {beneficiary.bank_name || '—'}
-                            </td>
+                                <div className="beneficiary-bank-cell">
+                                    <strong>
+                                        {beneficiary.bank_name || '—'}
+                                    </strong>
 
-                            <td className="iban-cell">
-                                {beneficiary.iban || '—'}
+                                    {beneficiary.bank_address && (
+                                        <span>
+                                            {beneficiary.bank_address}
+                                        </span>
+                                    )}
+                                </div>
                             </td>
 
                             <td>
-                                {beneficiary.swift || '—'}
+                                <span className="iban-value">
+                                    {beneficiary.iban || '—'}
+                                </span>
+                            </td>
+
+                            <td>
+                                {beneficiary.swift ? (
+                                    <Badge
+                                        variant="neutral"
+                                        size="small"
+                                    >
+                                        {beneficiary.swift}
+                                    </Badge>
+                                ) : (
+                                    '—'
+                                )}
                             </td>
 
                             <td>
                                 <div className="table-actions">
                                     <Button
-                                        size="small"
                                         variant="secondary"
+                                        size="small"
                                         onClick={() =>
                                             onEdit(beneficiary)
                                         }
@@ -83,8 +116,8 @@ function BeneficiaryTable({
                                     </Button>
 
                                     <Button
-                                        size="small"
                                         variant="danger"
+                                        size="small"
                                         onClick={() =>
                                             onDelete(beneficiary)
                                         }

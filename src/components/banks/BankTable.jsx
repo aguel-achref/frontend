@@ -1,144 +1,130 @@
-import { useEffect, useState } from 'react';
-
-import Input from '../ui/Input';
-import Select from '../ui/Select';
+import Badge from '../ui/Badge';
 import Button from '../ui/Button';
+import EmptyState from '../ui/EmptyState';
 
-const emptyBank = {
-    code: '',
-    name: '',
-    account: '',
-    template: 'GENERIC',
-    form_number: ''
-};
-
-function BankForm({
-    bank = null,
-    onSubmit,
-    onCancel,
-    loading = false
+function BankTable({
+    banks = [],
+    loading = false,
+    onEdit,
+    onDelete,
 }) {
-    const [form, setForm] = useState(emptyBank);
+    if (loading) {
+        return (
+            <div className="bank-table-loading">
+                <div className="loading-spinner" />
+                <span>Chargement des banques...</span>
+            </div>
+        );
+    }
 
-    useEffect(() => {
-        if (bank) {
-            setForm({
-                code: bank.code || '',
-                name: bank.name || '',
-                account: bank.account || '',
-                template: bank.template || 'GENERIC',
-                form_number: bank.form_number || ''
-            });
-        } else {
-            setForm(emptyBank);
-        }
-    }, [bank]);
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-
-        setForm((prev) => ({
-            ...prev,
-            [name]: value
-        }));
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-
-        if (!form.code.trim() || !form.name.trim()) {
-            return;
-        }
-
-        onSubmit({
-            ...form,
-            code: form.code.trim().toUpperCase(),
-            name: form.name.trim(),
-            account: form.account.trim(),
-            form_number: form.form_number.trim()
-        });
-    };
+    if (!banks.length) {
+        return (
+            <EmptyState
+                icon="🏦"
+                title="Aucune banque"
+                description="Aucune banque ne correspond à votre recherche."
+            />
+        );
+    }
 
     return (
-        <form onSubmit={handleSubmit}>
-            <div className="form-grid-2">
-                <Input
-                    label="Code"
-                    name="code"
-                    value={form.code}
-                    onChange={handleChange}
-                    placeholder="BIAT"
-                    required
-                />
+        <div className="table-wrapper">
+            <table className="data-table bank-table">
+                <thead>
+                    <tr>
+                        <th>Banque</th>
+                        <th>Code</th>
+                        <th>Compte</th>
+                        <th>Modèle</th>
+                        <th>Formulaire</th>
+                        <th>Statut</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
 
-                <Input
-                    label="Nom de la banque"
-                    name="name"
-                    value={form.name}
-                    onChange={handleChange}
-                    placeholder="Nom de la banque"
-                    required
-                />
+                <tbody>
+                    {banks.map((bank) => (
+                        <tr key={bank.id}>
+                            <td>
+                                <div className="bank-name-cell">
+                                    <div className="bank-avatar">
+                                        {bank.name
+                                            ?.charAt(0)
+                                            ?.toUpperCase() || 'B'}
+                                    </div>
 
-                <Input
-                    label="Compte bancaire"
-                    name="account"
-                    value={form.account}
-                    onChange={handleChange}
-                    placeholder="Compte de débit"
-                />
+                                    <strong>
+                                        {bank.name}
+                                    </strong>
+                                </div>
+                            </td>
 
-                <Select
-                    label="Template"
-                    name="template"
-                    value={form.template}
-                    onChange={handleChange}
-                    options={[
-                        {
-                            value: 'GENERIC',
-                            label: 'Générique'
-                        },
-                        {
-                            value: 'BIAT',
-                            label: 'BIAT'
-                        },
-                        {
-                            value: 'ATTIJARI',
-                            label: 'Attijari'
-                        }
-                    ]}
-                />
+                            <td>
+                                <span className="code-value">
+                                    {bank.code}
+                                </span>
+                            </td>
 
-                <Input
-                    label="Numéro de formulaire"
-                    name="form_number"
-                    value={form.form_number}
-                    onChange={handleChange}
-                    placeholder="93 / 140"
-                />
-            </div>
+                            <td>
+                                {bank.account || '—'}
+                            </td>
 
-            <div className="form-actions">
-                <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={onCancel}
-                    disabled={loading}
-                >
-                    Annuler
-                </Button>
+                            <td>
+                                <Badge
+                                    variant="neutral"
+                                    size="small"
+                                >
+                                    {bank.template}
+                                </Badge>
+                            </td>
 
-                <Button
-                    type="submit"
-                    loading={loading}
-                >
-                    {bank
-                        ? 'Enregistrer'
-                        : 'Ajouter la banque'}
-                </Button>
-            </div>
-        </form>
+                            <td>
+                                {bank.form_number || '—'}
+                            </td>
+
+                            <td>
+                                {Boolean(bank.is_active) ? (
+                                    <Badge
+                                        variant="success"
+                                        size="small"
+                                    >
+                                        Active
+                                    </Badge>
+                                ) : (
+                                    <Badge
+                                        variant="neutral"
+                                        size="small"
+                                    >
+                                        Inactive
+                                    </Badge>
+                                )}
+                            </td>
+
+                            <td>
+                                <div className="table-actions">
+                                    <Button
+                                        variant="secondary"
+                                        size="small"
+                                        onClick={() => onEdit(bank)}
+                                    >
+                                        Modifier
+                                    </Button>
+
+                                    <Button
+                                        variant="danger"
+                                        size="small"
+                                        onClick={() => onDelete(bank)}
+                                    >
+                                        Supprimer
+                                    </Button>
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
     );
 }
 
-export default BankForm;
+export default BankTable;

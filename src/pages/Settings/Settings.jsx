@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import PageHeader from '../../components/layout/PageHeader';
+
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
@@ -8,14 +9,22 @@ import Toast from '../../components/ui/Toast';
 
 import {
     getSettings,
-    updateSettings
+    updateSettings,
 } from '../../api/settings.api';
 
 function Settings() {
     const [settings, setSettings] = useState(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+
     const [toast, setToast] = useState(null);
+
+    const showToast = (message, type = 'success') => {
+        setToast({
+            message,
+            type,
+        });
+    };
 
     const loadSettings = async () => {
         try {
@@ -24,17 +33,22 @@ function Settings() {
             const response = await getSettings();
 
             if (response.success) {
-                setSettings(response.data);
+                setSettings(response.data || null);
+            } else {
+                showToast(
+                    response.error ||
+                        'Impossible de charger les paramètres.',
+                    'error'
+                );
             }
         } catch (error) {
             console.error(error);
 
-            setToast({
-                type: 'error',
-                message:
-                    error.response?.data?.error ||
-                    'Impossible de charger les paramètres.'
-            });
+            showToast(
+                error.response?.data?.error ||
+                    'Erreur lors du chargement des paramètres.',
+                'error'
+            );
         } finally {
             setLoading(false);
         }
@@ -44,56 +58,72 @@ function Settings() {
         loadSettings();
     }, []);
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
+    const handleChange = (event) => {
+        const { name, value } = event.target;
 
-        setSettings((prev) => ({
-            ...prev,
-            [name]: value
+        setSettings((current) => ({
+            ...current,
+            [name]: value,
         }));
     };
 
-    const handleSave = async (e) => {
-        e.preventDefault();
+    const handleSave = async () => {
+        if (!settings?.id) {
+            showToast(
+                'Identifiant des paramètres introuvable.',
+                'error'
+            );
 
-        if (!settings) {
             return;
         }
 
         try {
             setSaving(true);
 
-            await updateSettings(settings.id, {
-                company_name: settings.company_name,
-                address: settings.address,
-                city: settings.city,
-                postal_code: settings.postal_code,
-                customs_code: settings.customs_code,
-                rne: settings.rne,
-                phone: settings.phone,
-                financial_code: settings.financial_code,
-                biat_account: settings.biat_account,
-                attijari_account: settings.attijari_account,
+            const payload = {
+                company_name: settings.company_name || '',
+                address: settings.address || '',
+                city: settings.city || '',
+                postal_code: settings.postal_code || '',
+                customs_code: settings.customs_code || '',
+                rne: settings.rne || '',
+                phone: settings.phone || '',
+                financial_code: settings.financial_code || '',
+                biat_account: settings.biat_account || '',
+                attijari_account:
+                    settings.attijari_account || '',
                 next_transfer_number:
-                    Number(settings.next_transfer_number) || 1
-            });
+                    Number(settings.next_transfer_number) || 1,
+            };
 
-            setToast({
-                type: 'success',
-                message:
-                    'Paramètres enregistrés avec succès.'
-            });
+            const response = await updateSettings(
+                settings.id,
+                payload
+            );
 
-            await loadSettings();
+            if (!response.success) {
+                showToast(
+                    response.error ||
+                        'Impossible d’enregistrer les paramètres.',
+                    'error'
+                );
+
+                return;
+            }
+
+            setSettings(response.data || settings);
+
+            showToast(
+                'Paramètres enregistrés avec succès.'
+            );
         } catch (error) {
             console.error(error);
 
-            setToast({
-                type: 'error',
-                message:
-                    error.response?.data?.error ||
-                    'Impossible d’enregistrer les paramètres.'
-            });
+            showToast(
+                error.response?.data?.error ||
+                    'Erreur lors de l’enregistrement.',
+                'error'
+            );
         } finally {
             setSaving(false);
         }
@@ -101,15 +131,18 @@ function Settings() {
 
     if (loading) {
         return (
-            <div className="page">
+            <div className="page settings-page">
                 <PageHeader
                     title="Paramètres"
-                    description="Configuration de l'application."
+                    description="Configuration de votre société et des virements."
                 />
 
                 <Card>
-                    <div className="table-loading">
-                        Chargement des paramètres...
+                    <div className="page-loading">
+                        <div className="loading-spinner" />
+                        <span>
+                            Chargement des paramètres...
+                        </span>
                     </div>
                 </Card>
             </div>
@@ -118,17 +151,20 @@ function Settings() {
 
     if (!settings) {
         return (
-            <div className="page">
+            <div className="page settings-page">
                 <PageHeader
                     title="Paramètres"
-                    description="Configuration de l'application."
+                    description="Configuration de votre société et des virements."
                 />
 
                 <Card>
-                    <p>
-                        Aucun paramètre société n'a encore été
-                        configuré.
-                    </p>
+                    <div className="empty-state">
+                        <h3>Paramètres introuvables</h3>
+                        <p>
+                            Aucun enregistrement de configuration
+                            n'est disponible.
+                        </p>
+                    </div>
                 </Card>
             </div>
         );
@@ -139,12 +175,21 @@ function Settings() {
             <PageHeader
                 title="Paramètres"
                 description="Configurez les informations de votre société et les paramètres des virements."
+                actions={
+                    <Button
+                        onClick={handleSave}
+                        loading={saving}
+                        disabled={saving}
+                    >
+                        Enregistrer
+                    </Button>
+                }
             />
 
-            <form onSubmit={handleSave}>
+            <div className="settings-grid">
                 <Card
                     title="Informations de la société"
-                    description="Ces informations sont utilisées dans les documents et formulaires."
+                    description="Ces informations sont utilisées sur les documents et formulaires."
                 >
                     <div className="form-grid-2">
                         <Input
@@ -152,7 +197,6 @@ function Settings() {
                             name="company_name"
                             value={settings.company_name || ''}
                             onChange={handleChange}
-                            required
                         />
 
                         <Input
@@ -191,7 +235,7 @@ function Settings() {
                         />
 
                         <Input
-                            label="RNE"
+                            label="RNE / Registre"
                             name="rne"
                             value={settings.rne || ''}
                             onChange={handleChange}
@@ -208,8 +252,7 @@ function Settings() {
 
                 <Card
                     title="Comptes bancaires"
-                    description="Comptes utilisés pour les virements."
-                    className="settings-card-spacing"
+                    description="Comptes utilisés pour les ordres de virement."
                 >
                     <div className="form-grid-2">
                         <Input
@@ -220,7 +263,7 @@ function Settings() {
                         />
 
                         <Input
-                            label="Compte Attijari"
+                            label="Compte Attijari Bank"
                             name="attijari_account"
                             value={
                                 settings.attijari_account || ''
@@ -232,45 +275,55 @@ function Settings() {
 
                 <Card
                     title="Numérotation des virements"
-                    description="Le prochain numéro sera utilisé pour générer automatiquement la référence du virement."
-                    className="settings-card-spacing"
+                    description="Le prochain numéro sera utilisé lors de la création du prochain ordre."
                 >
-                    <div className="settings-numbering">
+                    <div className="settings-number-box">
                         <Input
                             label="Prochain numéro"
-                            name="next_transfer_number"
                             type="number"
                             min="1"
+                            name="next_transfer_number"
                             value={
                                 settings.next_transfer_number || 1
                             }
                             onChange={handleChange}
                         />
 
-                        <div className="reference-preview">
-                            <span>
-                                Prochaine référence
-                            </span>
+                        <div className="settings-reference-preview">
+                            <span>Prochaine référence</span>
 
                             <strong>
                                 {String(
-                                    settings.next_transfer_number ||
-                                        1
+                                    settings.next_transfer_number || 1
                                 ).padStart(6, '0')}
                             </strong>
                         </div>
                     </div>
                 </Card>
 
-                <div className="settings-actions">
-                    <Button
-                        type="submit"
-                        loading={saving}
-                    >
-                        Enregistrer les paramètres
-                    </Button>
-                </div>
-            </form>
+                <Card
+                    title="Configuration"
+                    description="Informations techniques de l'application."
+                >
+                    <div className="settings-info-list">
+                        <div>
+                            <span>ID configuration</span>
+                            <strong>{settings.id}</strong>
+                        </div>
+
+                        <div>
+                            <span>Dernière modification</span>
+                            <strong>
+                                {settings.updated_at
+                                    ? new Date(
+                                          settings.updated_at
+                                      ).toLocaleString('fr-FR')
+                                    : '—'}
+                            </strong>
+                        </div>
+                    </div>
+                </Card>
+            </div>
 
             {toast && (
                 <Toast

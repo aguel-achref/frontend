@@ -1,23 +1,23 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
 
 import PageHeader from '../../components/layout/PageHeader';
+
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
+import Badge from '../../components/ui/Badge';
 
 import { getBanks } from '../../api/bank.api';
-import { getBeneficiaries } from '../../api/beneficiary.api';
-import { getTransfers } from '../../api/transfer.api';
+import {
+    getBeneficiaries,
+} from '../../api/beneficiary.api';
+import {
+    getTransfers,
+} from '../../api/transfer.api';
 
 function Dashboard() {
-    const [stats, setStats] = useState({
-        transfers: 0,
-        beneficiaries: 0,
-        banks: 0
-    });
-
-    const [recentTransfers, setRecentTransfers] =
-        useState([]);
+    const [banks, setBanks] = useState([]);
+    const [beneficiaries, setBeneficiaries] = useState([]);
+    const [transfers, setTransfers] = useState([]);
 
     const [loading, setLoading] = useState(true);
 
@@ -27,33 +27,32 @@ function Dashboard() {
                 setLoading(true);
 
                 const [
-                    transfersResponse,
+                    banksResponse,
                     beneficiariesResponse,
-                    banksResponse
+                    transfersResponse,
                 ] = await Promise.all([
-                    getTransfers(),
+                    getBanks(),
                     getBeneficiaries(),
-                    getBanks()
+                    getTransfers(),
                 ]);
 
-                const transfers =
-                    transfersResponse.data || [];
+                if (banksResponse.success) {
+                    setBanks(banksResponse.data || []);
+                }
 
-                setStats({
-                    transfers: transfers.length,
-                    beneficiaries:
-                        beneficiariesResponse.data?.length || 0,
-                    banks: banksResponse.data?.length || 0
-                });
+                if (beneficiariesResponse.success) {
+                    setBeneficiaries(
+                        beneficiariesResponse.data || []
+                    );
+                }
 
-                setRecentTransfers(
-                    transfers.slice(0, 5)
-                );
+                if (transfersResponse.success) {
+                    setTransfers(
+                        transfersResponse.data || []
+                    );
+                }
             } catch (error) {
-                console.error(
-                    'Dashboard loading error:',
-                    error
-                );
+                console.error(error);
             } finally {
                 setLoading(false);
             }
@@ -62,198 +61,260 @@ function Dashboard() {
         loadDashboard();
     }, []);
 
+    const activeBanks = banks.filter(
+        (bank) => Boolean(bank.is_active)
+    );
+
+    const totalAmount = useMemo(() => {
+        return transfers.reduce(
+            (total, transfer) =>
+                total + Number(transfer.amount || 0),
+            0
+        );
+    }, [transfers]);
+
+    const currencyTotals = useMemo(() => {
+        const totals = {};
+
+        transfers.forEach((transfer) => {
+            const currency = transfer.currency || 'N/A';
+
+            totals[currency] =
+                (totals[currency] || 0) +
+                Number(transfer.amount || 0);
+        });
+
+        return totals;
+    }, [transfers]);
+
+    const recentTransfers = [...transfers]
+        .sort(
+            (a, b) =>
+                new Date(b.created_at || b.transfer_date) -
+                new Date(a.created_at || a.transfer_date)
+        )
+        .slice(0, 5);
+
     return (
         <div className="page dashboard-page">
             <PageHeader
                 title="Tableau de bord"
-                description="Vue d'ensemble de votre gestion des virements."
+                description="Vue d'ensemble de votre gestion des virements internationaux."
                 actions={
-                    <Link
-                        to="/transfers"
-                        className="button-link"
+                    <Button
+                        onClick={() => {
+                            window.location.href =
+                                '/transfers';
+                        }}
                     >
-                        <Button>
-                            + Nouveau virement
-                        </Button>
-                    </Link>
+                        + Nouveau virement
+                    </Button>
                 }
             />
 
-            <div className="dashboard-stats">
-                <div className="dashboard-stat-card">
-                    <span className="dashboard-stat-icon">
-                        ↗
-                    </span>
-
-                    <div>
-                        <span className="stat-label">
-                            Virements
+            {loading ? (
+                <Card>
+                    <div className="page-loading">
+                        <div className="loading-spinner" />
+                        <span>
+                            Chargement du tableau de bord...
                         </span>
-
-                        <strong>
-                            {loading
-                                ? '...'
-                                : stats.transfers}
-                        </strong>
-                    </div>
-                </div>
-
-                <div className="dashboard-stat-card">
-                    <span className="dashboard-stat-icon">
-                        👤
-                    </span>
-
-                    <div>
-                        <span className="stat-label">
-                            Bénéficiaires
-                        </span>
-
-                        <strong>
-                            {loading
-                                ? '...'
-                                : stats.beneficiaries}
-                        </strong>
-                    </div>
-                </div>
-
-                <div className="dashboard-stat-card">
-                    <span className="dashboard-stat-icon">
-                        🏦
-                    </span>
-
-                    <div>
-                        <span className="stat-label">
-                            Banques
-                        </span>
-
-                        <strong>
-                            {loading
-                                ? '...'
-                                : stats.banks}
-                        </strong>
-                    </div>
-                </div>
-            </div>
-
-            <div className="dashboard-grid">
-                <Card
-                    title="Accès rapides"
-                    description="Les opérations les plus utilisées."
-                >
-                    <div className="quick-actions">
-                        <Link to="/transfers">
-                            <div className="quick-action">
-                                <span>↗</span>
-                                <div>
-                                    <strong>
-                                        Nouveau virement
-                                    </strong>
-
-                                    <small>
-                                        Créer un virement
-                                        bancaire
-                                    </small>
-                                </div>
-                            </div>
-                        </Link>
-
-                        <Link to="/beneficiaries">
-                            <div className="quick-action">
-                                <span>👤</span>
-                                <div>
-                                    <strong>
-                                        Bénéficiaires
-                                    </strong>
-
-                                    <small>
-                                        Gérer les
-                                        bénéficiaires
-                                    </small>
-                                </div>
-                            </div>
-                        </Link>
-
-                        <Link to="/banks">
-                            <div className="quick-action">
-                                <span>🏦</span>
-                                <div>
-                                    <strong>
-                                        Banques
-                                    </strong>
-
-                                    <small>
-                                        Gérer les banques
-                                    </small>
-                                </div>
-                            </div>
-                        </Link>
-
-                        <Link to="/settings">
-                            <div className="quick-action">
-                                <span>⚙</span>
-                                <div>
-                                    <strong>
-                                        Paramètres
-                                    </strong>
-
-                                    <small>
-                                        Configuration
-                                    </small>
-                                </div>
-                            </div>
-                        </Link>
                     </div>
                 </Card>
-
-                <Card
-                    title="Derniers virements"
-                    description="Les opérations récemment enregistrées."
-                >
-                    {recentTransfers.length === 0 ? (
-                        <div className="dashboard-empty">
-                            Aucun virement enregistré.
+            ) : (
+                <>
+                    <div className="dashboard-stats">
+                        <div className="dashboard-stat">
+                            <span>Virements</span>
+                            <strong>
+                                {transfers.length}
+                            </strong>
+                            <small>
+                                ordres enregistrés
+                            </small>
                         </div>
-                    ) : (
-                        <div className="recent-transfers">
-                            {recentTransfers.map(
-                                (transfer) => (
-                                    <div
-                                        className="recent-transfer"
-                                        key={transfer.id}
-                                    >
-                                        <div>
-                                            <strong>
-                                                {transfer.reference}
-                                            </strong>
 
-                                            <span>
-                                                {
-                                                    transfer.beneficiary_name
-                                                }
-                                            </span>
-                                        </div>
+                        <div className="dashboard-stat">
+                            <span>Bénéficiaires</span>
+                            <strong>
+                                {beneficiaries.length}
+                            </strong>
+                            <small>
+                                bénéficiaires enregistrés
+                            </small>
+                        </div>
 
-                                        <strong>
-                                            {Number(
-                                                transfer.amount ||
-                                                    0
-                                            ).toLocaleString(
-                                                'fr-FR',
-                                                {
-                                                    minimumFractionDigits: 2
-                                                }
-                                            )}{' '}
-                                            {
-                                                transfer.currency
-                                            }
-                                        </strong>
-                                    </div>
-                                )
+                        <div className="dashboard-stat">
+                            <span>Banques actives</span>
+                            <strong>
+                                {activeBanks.length}
+                            </strong>
+                            <small>
+                                banques disponibles
+                            </small>
+                        </div>
+
+                        <div className="dashboard-stat">
+                            <span>Montant total</span>
+                            <strong>
+                                {totalAmount.toLocaleString(
+                                    'fr-FR',
+                                    {
+                                        maximumFractionDigits: 2,
+                                    }
+                                )}
+                            </strong>
+                            <small>
+                                toutes devises confondues
+                            </small>
+                        </div>
+                    </div>
+
+                    <div className="dashboard-grid">
+                        <Card
+                            title="Derniers virements"
+                            description="Les dernières opérations enregistrées."
+                        >
+                            {recentTransfers.length === 0 ? (
+                                <div className="dashboard-empty">
+                                    Aucun virement enregistré.
+                                </div>
+                            ) : (
+                                <div className="recent-transfer-list">
+                                    {recentTransfers.map(
+                                        (transfer) => (
+                                            <div
+                                                className="recent-transfer"
+                                                key={transfer.id}
+                                            >
+                                                <div>
+                                                    <strong>
+                                                        {transfer.reference}
+                                                    </strong>
+
+                                                    <span>
+                                                        {transfer.beneficiary_name ||
+                                                            'Bénéficiaire'}
+                                                    </span>
+                                                </div>
+
+                                                <div className="recent-transfer-right">
+                                                    <strong>
+                                                        {Number(
+                                                            transfer.amount ||
+                                                                0
+                                                        ).toLocaleString(
+                                                            'fr-FR',
+                                                            {
+                                                                minimumFractionDigits: 2,
+                                                                maximumFractionDigits: 2,
+                                                            }
+                                                        )}{' '}
+                                                        {transfer.currency}
+                                                    </strong>
+
+                                                    <span>
+                                                        {
+                                                            transfer.transfer_date
+                                                        }
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )
+                                    )}
+                                </div>
                             )}
+                        </Card>
+
+                        <Card
+                            title="Répartition par devise"
+                            description="Montants cumulés des virements."
+                        >
+                            <div className="currency-list">
+                                {Object.keys(currencyTotals)
+                                    .length === 0 ? (
+                                    <div className="dashboard-empty">
+                                        Aucune donnée disponible.
+                                    </div>
+                                ) : (
+                                    Object.entries(
+                                        currencyTotals
+                                    ).map(
+                                        ([
+                                            currency,
+                                            amount,
+                                        ]) => (
+                                            <div
+                                                className="currency-item"
+                                                key={currency}
+                                            >
+                                                <Badge
+                                                    variant="neutral"
+                                                >
+                                                    {currency}
+                                                </Badge>
+
+                                                <strong>
+                                                    {amount.toLocaleString(
+                                                        'fr-FR',
+                                                        {
+                                                            minimumFractionDigits: 2,
+                                                            maximumFractionDigits: 2,
+                                                        }
+                                                    )}
+                                                </strong>
+                                            </div>
+                                        )
+                                    )
+                                )}
+                            </div>
+                        </Card>
+                    </div>
+
+                    <Card
+                        title="Banques disponibles"
+                        description="Configuration actuelle des banques émettrices."
+                    >
+                        <div className="dashboard-bank-list">
+                            {banks.map((bank) => (
+                                <div
+                                    className="dashboard-bank"
+                                    key={bank.id}
+                                >
+                                    <div className="dashboard-bank-avatar">
+                                        {bank.name
+                                            ?.charAt(0)
+                                            ?.toUpperCase()}
+                                    </div>
+
+                                    <div>
+                                        <strong>
+                                            {bank.name}
+                                        </strong>
+
+                                        <span>
+                                            {bank.account ||
+                                                'Compte non renseigné'}
+                                        </span>
+                                    </div>
+
+                                    <Badge
+                                        variant={
+                                            bank.is_active
+                                                ? 'success'
+                                                : 'neutral'
+                                        }
+                                    >
+                                        {bank.is_active
+                                            ? 'Active'
+                                            : 'Inactive'}
+                                    </Badge>
+                                </div>
+                            ))}
                         </div>
-                    )}
-                </Card>
-            </div>
+                    </Card>
+                </>
+            )}
         </div>
     );
 }

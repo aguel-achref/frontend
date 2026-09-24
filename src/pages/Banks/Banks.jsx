@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import PageHeader from '../../components/layout/PageHeader';
-import Card from '../../components/ui/Card';
+
 import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
 import Modal from '../../components/ui/Modal';
 import Toast from '../../components/ui/Toast';
+import Input from '../../components/ui/Input';
 
 import BankForm from '../../components/banks/BankForm';
 import BankTable from '../../components/banks/BankTable';
@@ -13,18 +15,27 @@ import {
     getBanks,
     createBank,
     updateBank,
-    deleteBank
+    deleteBank,
 } from '../../api/bank.api';
 
 function Banks() {
     const [banks, setBanks] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+
+    const [search, setSearch] = useState('');
 
     const [modalOpen, setModalOpen] = useState(false);
-    const [editingBank, setEditingBank] = useState(null);
+    const [selectedBank, setSelectedBank] = useState(null);
+    const [saving, setSaving] = useState(false);
 
     const [toast, setToast] = useState(null);
+
+    const showToast = (message, type = 'success') => {
+        setToast({
+            message,
+            type,
+        });
+    };
 
     const loadBanks = async () => {
         try {
@@ -34,16 +45,21 @@ function Banks() {
 
             if (response.success) {
                 setBanks(response.data || []);
+            } else {
+                showToast(
+                    response.error ||
+                        'Impossible de charger les banques.',
+                    'error'
+                );
             }
         } catch (error) {
             console.error(error);
 
-            setToast({
-                type: 'error',
-                message:
-                    error.response?.data?.error ||
-                    'Impossible de charger les banques.'
-            });
+            showToast(
+                error.response?.data?.error ||
+                    'Erreur lors du chargement des banques.',
+                'error'
+            );
         } finally {
             setLoading(false);
         }
@@ -53,56 +69,93 @@ function Banks() {
         loadBanks();
     }, []);
 
-    const openCreate = () => {
-        setEditingBank(null);
+    const filteredBanks = useMemo(() => {
+        const value = search.trim().toLowerCase();
+
+        if (!value) {
+            return banks;
+        }
+
+        return banks.filter((bank) =>
+            [
+                bank.code,
+                bank.name,
+                bank.account,
+                bank.template,
+                bank.form_number,
+            ]
+                .filter(Boolean)
+                .some((field) =>
+                    String(field)
+                        .toLowerCase()
+                        .includes(value)
+                )
+        );
+    }, [banks, search]);
+
+    const openCreateModal = () => {
+        setSelectedBank(null);
         setModalOpen(true);
     };
 
-    const openEdit = (bank) => {
-        setEditingBank(bank);
+    const openEditModal = (bank) => {
+        setSelectedBank(bank);
         setModalOpen(true);
     };
 
     const closeModal = () => {
-        if (!saving) {
-            setModalOpen(false);
-            setEditingBank(null);
+        if (saving) {
+            return;
         }
+
+        setModalOpen(false);
+        setSelectedBank(null);
     };
 
-    const handleSubmit = async (data) => {
+    const handleSubmit = async (payload) => {
         try {
             setSaving(true);
 
-            if (editingBank) {
-                await updateBank(editingBank.id, data);
+            let response;
 
-                setToast({
-                    type: 'success',
-                    message: 'Banque modifiée avec succès.'
-                });
+            if (selectedBank) {
+                response = await updateBank(
+                    selectedBank.id,
+                    payload
+                );
             } else {
-                await createBank(data);
-
-                setToast({
-                    type: 'success',
-                    message: 'Banque ajoutée avec succès.'
-                });
+                response = await createBank(payload);
             }
 
-            setModalOpen(false);
-            setEditingBank(null);
+            if (!response.success) {
+                showToast(
+                    response.error ||
+                        'Une erreur est survenue.',
+                    'error'
+                );
+
+                return;
+            }
 
             await loadBanks();
+
+            setModalOpen(false);
+            setSelectedBank(null);
+
+            showToast(
+                selectedBank
+                    ? 'Banque modifiée avec succès.'
+                    : 'Banque créée avec succès.',
+                'success'
+            );
         } catch (error) {
             console.error(error);
 
-            setToast({
-                type: 'error',
-                message:
-                    error.response?.data?.error ||
-                    'Une erreur est survenue.'
-            });
+            showToast(
+                error.response?.data?.error ||
+                    'Impossible d’enregistrer la banque.',
+                'error'
+            );
         } finally {
             setSaving(false);
         }
@@ -110,7 +163,7 @@ function Banks() {
 
     const handleDelete = async (bank) => {
         const confirmed = window.confirm(
-            `Supprimer la banque "${bank.name}" ?`
+            `Voulez-vous vraiment supprimer la banque "${bank.name}" ?`
         );
 
         if (!confirmed) {
@@ -118,73 +171,95 @@ function Banks() {
         }
 
         try {
-            await deleteBank(bank.id);
+            const response = await deleteBank(bank.id);
 
-            setToast({
-                type: 'success',
-                message: 'Banque supprimée.'
-            });
+            if (!response.success) {
+                showToast(
+                    response.error ||
+                        'Impossible de supprimer la banque.',
+                    'error'
+                );
+
+                return;
+            }
 
             await loadBanks();
+
+            showToast(
+                'Banque supprimée avec succès.',
+                'success'
+            );
         } catch (error) {
             console.error(error);
 
-            setToast({
-                type: 'error',
-                message:
-                    error.response?.data?.error ||
-                    'Impossible de supprimer la banque.'
-            });
+            showToast(
+                error.response?.data?.error ||
+                    'Erreur lors de la suppression.',
+                'error'
+            );
         }
     };
+
+    const activeCount = banks.filter(
+        (bank) => Boolean(bank.is_active)
+    ).length;
 
     return (
         <div className="page banks-page">
             <PageHeader
                 title="Banques"
-                description="Gérez les banques émettrices et leurs modèles de formulaires."
+                description="Gérez les banques émettrices disponibles pour vos virements."
                 actions={
-                    <Button onClick={openCreate}>
+                    <Button onClick={openCreateModal}>
                         + Nouvelle banque
                     </Button>
                 }
             />
 
-            <div className="page-stats">
-                <div className="stat-card">
-                    <span className="stat-label">
-                        Banques
-                    </span>
-
-                    <strong className="stat-value">
-                        {banks.length}
-                    </strong>
+            <div className="bank-stats">
+                <div className="bank-stat-card">
+                    <span>Total banques</span>
+                    <strong>{banks.length}</strong>
                 </div>
 
-                <div className="stat-card">
-                    <span className="stat-label">
-                        Banques actives
-                    </span>
+                <div className="bank-stat-card">
+                    <span>Banques actives</span>
+                    <strong>{activeCount}</strong>
+                </div>
 
-                    <strong className="stat-value">
-                        {
-                            banks.filter(
-                                (bank) =>
-                                    Boolean(bank.is_active)
-                            ).length
-                        }
-                    </strong>
+                <div className="bank-stat-card">
+                    <span>Résultats affichés</span>
+                    <strong>{filteredBanks.length}</strong>
                 </div>
             </div>
 
             <Card
-                title="Banques disponibles"
-                description="Ces banques peuvent être utilisées pour les virements."
+                title="Liste des banques"
+                description="Configurez les banques utilisées par l'application."
             >
+                <div className="bank-toolbar">
+                    <Input
+                        value={search}
+                        onChange={(event) =>
+                            setSearch(event.target.value)
+                        }
+                        placeholder="Rechercher une banque, un code..."
+                    />
+
+                    {search && (
+                        <Button
+                            variant="secondary"
+                            onClick={() => setSearch('')}
+                        >
+                            Réinitialiser
+                        </Button>
+                    )}
+                </div>
+
                 <BankTable
-                    banks={banks}
+                    banks={filteredBanks}
                     loading={loading}
-                    onEdit={openEdit}
+                    onEdit={openEditModal}
                     onDelete={handleDelete}
                 />
             </Card>
@@ -193,14 +268,19 @@ function Banks() {
                 open={modalOpen}
                 onClose={closeModal}
                 title={
-                    editingBank
+                    selectedBank
                         ? 'Modifier la banque'
                         : 'Nouvelle banque'
                 }
-                description="Configurez les informations de la banque."
+                description={
+                    selectedBank
+                        ? 'Modifiez la configuration de cette banque.'
+                        : 'Ajoutez une nouvelle banque émettrice.'
+                }
+                size="large"
             >
                 <BankForm
-                    bank={editingBank}
+                    bank={selectedBank}
                     onSubmit={handleSubmit}
                     onCancel={closeModal}
                     loading={saving}
