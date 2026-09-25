@@ -1,174 +1,150 @@
-function BiatTransferPrint({
-    transfer,
-    bank,
-    settings,
-}) {
-    return (
-        <div className="print-a4 bank-print biat-print">
-            <header className="bank-print-header">
-                <div className="bank-logo-box">
-                    BIAT
-                </div>
+function BoxedText({ value, className, boxWidth = 3, maxLength }) {
+  const chars = (value || "")
+    .toString()
+    .toUpperCase()
+    .replace(/\s+/g, "")
+    .slice(0, maxLength)
+    .split("");
 
-                <div>
-                    <strong>BIAT</strong>
-                    <span>
-                        Banque Internationale Arabe de Tunisie
-                    </span>
-                </div>
+  return (
+    <div
+      className={`print-box-row ${className}`}
+      style={{ "--box-width": `${boxWidth}%` }}
+    >
+      {chars.map((char, index) => (
+        <span key={index} className="print-box-char">
+          {char}
+        </span>
+      ))}
+    </div>
+  );
+}
 
-                <div className="bank-print-reference">
-                    <span>Référence</span>
-                    <strong>
-                        {transfer.reference}
-                    </strong>
-                </div>
-            </header>
+function BiatTransferPrint({ transfer, bank, settings }) {
+  if (!transfer) {
+    return null;
+  }
 
-            <div className="bank-print-title">
-                ORDRE DE VIREMENT
-            </div>
+  return (
+    <div className="bank-print-page biat-print">
+      <img
+        className="bank-print-background"
+        src="/print/biat.png"
+        alt="Formulaire BIAT"
+      />
 
-            <section className="bank-print-section">
-                <h2>Donneur d'ordre</h2>
+      {/* R.I.B. DU DONNEUR D'ORDRE (compte à débiter) */}
+      <BoxedText
+        className="biat-debit-rib"
+        value={transfer.debit_account}
+        boxWidth={2.52}
+        maxLength={20}
+      />
 
-                <div className="bank-print-grid">
-                    <div>
-                        <label>Raison sociale</label>
-                        <strong>
-                            {settings?.company_name}
-                        </strong>
-                    </div>
+      {/* CODE DEVISE DU COMPTE */}
+      <BoxedText
+        className="biat-account-currency"
+        value={transfer.currency || bank?.currency}
+        boxWidth={3.81}
+        maxLength={3}
+      />
 
-                    <div>
-                        <label>Compte</label>
-                        <strong>
-                            {transfer.debit_account}
-                        </strong>
-                    </div>
+      {/* DONNEUR D'ORDRE */}
+      <div className="print-field biat-company-name">
+        {settings?.company_name || ""}
+      </div>
 
-                    <div>
-                        <label>Adresse</label>
-                        <strong>
-                            {settings?.address}
-                        </strong>
-                    </div>
+      <div className="print-field biat-company-address">
+        {settings?.address || ""}
+      </div>
 
-                    <div>
-                        <label>Date</label>
-                        <strong>
-                            {transfer.transfer_date}
-                        </strong>
-                    </div>
-                </div>
-            </section>
+      <div className="print-field biat-phone">{settings?.phone || ""}</div>
 
-            <section className="bank-print-section">
-                <h2>Instruction de paiement</h2>
+      <div className="print-field biat-fax">{settings?.fax || ""}</div>
 
-                <div className="bank-print-grid">
-                    <div>
-                        <label>Devise</label>
-                        <strong>
-                            {transfer.currency}
-                        </strong>
-                    </div>
+      <div className="print-field biat-telex">{settings?.telex || ""}</div>
 
-                    <div>
-                        <label>Montant</label>
-                        <strong className="print-amount">
-                            {Number(
-                                transfer.amount || 0
-                            ).toLocaleString('fr-FR', {
-                                minimumFractionDigits: 2,
-                            })}
-                        </strong>
-                    </div>
+      <div className="print-field biat-customs-code">
+        {settings?.customs_code || ""}
+      </div>
 
-                    <div>
-                        <label>Frais</label>
-                        <strong>
-                            {transfer.fees}
-                        </strong>
-                    </div>
+      <div className="print-field biat-rc">
+        {settings?.rc_number || ""}
+      </div>
 
-                    <div>
-                        <label>Motif</label>
-                        <strong>
-                            {transfer.purpose || '—'}
-                        </strong>
-                    </div>
-                </div>
-            </section>
+      <div className="print-field biat-financial-code">
+        {settings?.financial_code || ""}
+      </div>
 
-            <section className="bank-print-section">
-                <h2>Bénéficiaire</h2>
+      <div className="print-field biat-cin">{settings?.cin || ""}</div>
 
-                <div className="bank-print-grid">
-                    <div>
-                        <label>Nom</label>
-                        <strong>
-                            {transfer.beneficiary_name}
-                        </strong>
-                    </div>
+      {/* MODE DE TRANSMISSION : coché en SWIFT */}
+      <div className="print-field biat-check-swift">X</div>
 
-                    <div>
-                        <label>Pays</label>
-                        <strong>
-                            {transfer.beneficiary_country}
-                        </strong>
-                    </div>
+      {/* SOMME EN TOUTES LETTRES */}
+      <div className="print-field biat-amount-words">
+        {transfer.amount_words || ""}
+      </div>
 
-                    <div className="print-span-2">
-                        <label>Adresse</label>
-                        <strong>
-                            {transfer.beneficiary_address}
-                        </strong>
-                    </div>
+      {/* DEVISE + MONTANT EN CHIFFRES */}
+      <BoxedText
+        className="biat-amount-currency"
+        value={transfer.currency}
+        boxWidth={3.81}
+        maxLength={3}
+      />
 
-                    <div className="print-span-2">
-                        <label>IBAN</label>
-                        <strong className="print-iban">
-                            {transfer.beneficiary_iban}
-                        </strong>
-                    </div>
+      <div className="print-field print-amount biat-amount">
+        {transfer.amount || ""}
+      </div>
 
-                    <div>
-                        <label>Banque</label>
-                        <strong>
-                            {transfer.beneficiary_bank}
-                        </strong>
-                    </div>
+      {/* BENEFICIAIRE */}
+      <div className="print-field biat-beneficiary-name">
+        {transfer.beneficiary_name || ""}
+      </div>
 
-                    <div>
-                        <label>SWIFT</label>
-                        <strong>
-                            {transfer.beneficiary_swift}
-                        </strong>
-                    </div>
-                </div>
-            </section>
+      <div className="print-field biat-beneficiary-bank">
+        {transfer.beneficiary_bank || ""}
+      </div>
 
-            <div className="print-signatures biat-signatures">
-                <div>Signature du client</div>
-                <div>Validation banque</div>
-                <div>Cachet</div>
-                <div>Date</div>
-            </div>
+      <div className="print-field biat-beneficiary-bank-address">
+        {transfer.beneficiary_bank_address || ""}
+      </div>
 
-            <footer className="bank-print-footer">
-                <strong>BIAT</strong>
+      <div className="print-field biat-beneficiary-city">
+        {transfer.beneficiary_city || ""}
+      </div>
 
-                <span>
-                    {settings?.company_name}
-                </span>
+      <div className="print-field biat-beneficiary-country">
+        {transfer.beneficiary_country || ""}
+      </div>
 
-                <span>
-                    Réf. {transfer.reference}
-                </span>
-            </footer>
-        </div>
-    );
+      {/* RIB BENEFICIAIRE */}
+      <BoxedText
+        className="biat-beneficiary-rib"
+        value={transfer.beneficiary_iban}
+        boxWidth={2.86}
+        maxLength={24}
+      />
+
+      <div className="print-field biat-purpose">
+        {transfer.purpose || ""}
+      </div>
+
+      <div className="print-field biat-beneficiary-address">
+        {transfer.beneficiary_address || ""}
+      </div>
+
+      <div className="print-field biat-fees-instructions">
+        {transfer.fees || ""}
+      </div>
+
+      {/* DATE DE L'ORDRE (ligne "Tunis, le ...") */}
+      <div className="print-field biat-order-date">
+        {transfer.transfer_date || ""}
+      </div>
+    </div>
+  );
 }
 
 export default BiatTransferPrint;

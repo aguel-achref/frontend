@@ -1,187 +1,141 @@
-function AttijariTransferPrint({
-    transfer,
-    bank,
-    settings,
-}) {
-    return (
-        <div className="print-a4 bank-print attijari-print">
-            <header className="bank-print-header">
-                <div className="attijari-logo-box">
-                    A
-                </div>
+function AttijariTransferPrint({ transfer, bank, settings }) {
+  if (!transfer) {
+    return null;
+  }
 
-                <div>
-                    <strong>Attijari bank</strong>
-                    <span>
-                        Tunisia
-                    </span>
-                </div>
+  const companyName = settings?.company_name || "SOCIETE LEO MINOR TUNISIE";
 
-                <div className="bank-print-reference">
-                    <span>N° de l'ordre</span>
-                    <strong>
-                        {transfer.reference}
-                    </strong>
-                </div>
-            </header>
+  const companyAddress = settings?.address || "";
 
-            <div className="bank-print-title">
-                ORDRE DE VIREMENT
-            </div>
+  const companyCity = settings?.city || "";
 
-            <section className="bank-print-section">
-                <h2>Donneur d'ordre</h2>
+  const companyPostalCode = settings?.postal_code || "";
 
-                <div className="bank-print-grid">
-                    <div className="print-span-2">
-                        <label>Client</label>
-                        <strong>
-                            {settings?.company_name}
-                        </strong>
-                    </div>
+  const companyRne = settings?.rne || "";
 
-                    <div>
-                        <label>Compte</label>
-                        <strong>
-                            {transfer.debit_account}
-                        </strong>
-                    </div>
+  const companyCustomsCode = settings?.customs_code || "";
 
-                    <div>
-                        <label>Date</label>
-                        <strong>
-                            {transfer.transfer_date}
-                        </strong>
-                    </div>
-                </div>
-            </section>
+  return (
+    <div className="bank-print-page attijari-print">
+      {/* IMAGE DU FORMULAIRE */}
+      <img
+        className="bank-print-background"
+        src="/print/attijari.png"
+        alt="Formulaire Attijari"
+      />
 
-            <section className="bank-print-section">
-                <h2>Opération</h2>
+      {/* NUMÉRO D'OPÉRATION */}
+      <div className="print-field att-operation-number">
+        {transfer.reference || ""}
+      </div>
 
-                <div className="bank-print-grid">
-                    <div>
-                        <label>Devise</label>
-                        <strong>
-                            {transfer.currency}
-                        </strong>
-                    </div>
+      {/* DATE */}
+      <div className="print-field att-operation-date">
+        {transfer.transfer_date || ""}
+      </div>
 
-                    <div>
-                        <label>Montant</label>
-                        <strong className="print-amount">
-                            {Number(
-                                transfer.amount || 0
-                            ).toLocaleString('fr-FR', {
-                                minimumFractionDigits: 2,
-                            })}
-                        </strong>
-                    </div>
+      {/* DONNEUR D'ORDRE */}
+      <div className="print-field att-company-name">{companyName}</div>
 
-                    <div>
-                        <label>Frais</label>
-                        <strong>
-                            {transfer.fees}
-                        </strong>
-                    </div>
+      <div className="print-field att-company-address">{companyAddress}</div>
 
-                    <div>
-                        <label>Cours négocié</label>
-                        <strong>
-                            {transfer.negotiated_rate || '—'}
-                        </strong>
-                    </div>
+      <div className="print-field att-company-city">{companyCity}</div>
 
-                    <div>
-                        <label>Type opération</label>
-                        <strong>
-                            {transfer.operation_type || '—'}
-                        </strong>
-                    </div>
+      <div className="print-field att-company-postal">{companyPostalCode}</div>
 
-                    <div>
-                        <label>Référence dossier</label>
-                        <strong>
-                            {transfer.case_reference || '—'}
-                        </strong>
-                    </div>
-                </div>
-            </section>
+      <div className="print-field att-company-rne">{companyRne}</div>
 
-            <section className="bank-print-section">
-                <h2>Bénéficiaire</h2>
+      <div className="print-field att-company-customs">
+        {companyCustomsCode}
+      </div>
 
-                <div className="bank-print-grid">
-                    <div className="print-span-2">
-                        <label>Nom / raison sociale</label>
-                        <strong>
-                            {transfer.beneficiary_name}
-                        </strong>
-                    </div>
+      {/* BANQUE */}
+      <div className="print-field att-bank-name">
+        {bank?.name || "Attijari Bank"}
+      </div>
 
-                    <div>
-                        <label>Pays</label>
-                        <strong>
-                            {transfer.beneficiary_country}
-                        </strong>
-                    </div>
+      <div className="print-field att-bank-account">
+        {transfer.debit_account || ""}
+      </div>
 
-                    <div>
-                        <label>Ville</label>
-                        <strong>
-                            {transfer.beneficiary_city}
-                        </strong>
-                    </div>
+      <div className="print-field att-account-currency">
+        {transfer.currency || ""}
+      </div>
 
-                    <div className="print-span-2">
-                        <label>IBAN</label>
-                        <strong className="print-iban">
-                            {transfer.beneficiary_iban}
-                        </strong>
-                    </div>
+      {/* VIREMENT */}
+      <div className="print-field att-transfer-date">
+        {transfer.transfer_date || ""}
+      </div>
 
-                    <div>
-                        <label>Banque</label>
-                        <strong>
-                            {transfer.beneficiary_bank}
-                        </strong>
-                    </div>
+      <div className="print-field att-currency">{transfer.currency || ""}</div>
 
-                    <div>
-                        <label>SWIFT</label>
-                        <strong>
-                            {transfer.beneficiary_swift}
-                        </strong>
-                    </div>
-                </div>
-            </section>
+      <div className="print-field att-amount">{transfer.amount || ""}</div>
 
-            <section className="attijari-purpose">
-                <label>Motif du virement</label>
+      <div className="print-field att-rate">
+        {transfer.negotiated_rate || ""}
+      </div>
 
-                <p>
-                    {transfer.purpose || '—'}
-                </p>
-            </section>
+      <div className="print-field att-operation-type">
+        {transfer.operation_type || ""}
+      </div>
 
-            <div className="print-signatures">
-                <div>Signature client</div>
-                <div>Signature autorisée</div>
-            </div>
+      <div className="print-field att-case-reference">
+        {transfer.case_reference || ""}
+      </div>
 
-            <footer className="bank-print-footer">
-                <strong>Attijari bank</strong>
+      <div className="print-field att-purpose">{transfer.purpose || ""}</div>
 
-                <span>
-                    {settings?.company_name}
-                </span>
+      {/* FRAIS */}
+      <div className="print-field att-fees">{transfer.fees || ""}</div>
 
-                <span>
-                    Réf. {transfer.reference}
-                </span>
-            </footer>
-        </div>
-    );
+      {/* BENEFICIAIRE */}
+      <div className="print-field att-beneficiary-name">
+        {transfer.beneficiary_name || ""}
+      </div>
+
+      <div className="print-field att-beneficiary-address">
+        {transfer.beneficiary_address || ""}
+      </div>
+
+      <div className="print-field att-beneficiary-city">
+        {transfer.beneficiary_city || ""}
+      </div>
+
+      <div className="print-field att-beneficiary-country">
+        {transfer.beneficiary_country || ""}
+      </div>
+
+      <div className="print-field att-beneficiary-iban">
+        {transfer.beneficiary_iban || ""}
+      </div>
+
+      <div className="print-field att-beneficiary-bank">
+        {transfer.beneficiary_bank || ""}
+      </div>
+
+      <div className="print-field att-beneficiary-swift">
+        {transfer.beneficiary_swift || ""}
+      </div>
+
+      <div className="print-field att-beneficiary-bank-address">
+        {transfer.beneficiary_bank_address || ""}
+      </div>
+
+      {/* BANQUE INTERMEDIAIRE */}
+      <div className="print-field att-intermediary-bank">
+        {transfer.intermediary_bank || ""}
+      </div>
+
+      <div className="print-field att-intermediary-swift">
+        {transfer.intermediary_swift || ""}
+      </div>
+
+      {/* MONTANT EN LETTRES */}
+      <div className="print-field att-amount-words">
+        {transfer.amount_words || ""}
+      </div>
+    </div>
+  );
 }
 
 export default AttijariTransferPrint;

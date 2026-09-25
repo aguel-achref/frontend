@@ -1,101 +1,80 @@
-import { useEffect } from 'react';
+import { useEffect } from "react";
 
 function Modal({
-    open,
-    onClose,
-    title,
-    description = '',
-    children,
-    size = 'medium',
-    footer = null,
+  open,
+  onClose,
+  title,
+  description = "",
+  children,
+  size = "medium",
+  footer = null,
 }) {
-    useEffect(() => {
-        if (!open) {
-            return;
-        }
-
-        const handleEscape = (event) => {
-            if (event.key === 'Escape') {
-                onClose();
-            }
-        };
-
-        document.addEventListener(
-            'keydown',
-            handleEscape
-        );
-
-        document.body.style.overflow = 'hidden';
-
-        return () => {
-            document.removeEventListener(
-                'keydown',
-                handleEscape
-            );
-
-            document.body.style.overflow = '';
-        };
-    }, [open, onClose]);
-
+  useEffect(() => {
     if (!open) {
-        return null;
+      return;
     }
 
-    const modalClasses = [
-        'modal',
-        `modal-${size}`
-    ].join(' ');
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
 
-    return (
-        <div
-            className="modal-overlay"
-            onMouseDown={(event) => {
-                if (event.target === event.currentTarget) {
-                    onClose();
-                }
-            }}
-        >
-            <div
-                className={modalClasses}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="modal-title"
-            >
-                <div className="modal-header">
-                    <div>
-                        <h2 id="modal-title">
-                            {title}
-                        </h2>
+    document.addEventListener("keydown", handleEscape);
 
-                        {description && (
-                            <p>
-                                {description}
-                            </p>
-                        )}
-                    </div>
+    document.body.style.overflow = "hidden";
 
-                    <button
-                        type="button"
-                        className="modal-close"
-                        onClick={onClose}
-                        aria-label="Fermer"
-                    >
-                        ×
-                    </button>
-                </div>
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
 
-                <div className="modal-body">
-                    {children}
-                </div>
+      document.body.style.overflow = "";
+    };
+  }, [open, onClose]);
 
-                {footer && (
-                    <div className="modal-footer">
-                        {footer}
-                    </div>
-                )}
-            </div>
+  if (!open) {
+    return null;
+  }
+
+  const modalClasses = ["modal", `modal-${size}`].join(" ");
+
+  return (
+    <div
+      className="modal-overlay"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        className={modalClasses}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+      >
+        <div className="modal-header">
+          <div>
+            <h2 id="modal-title">{title}</h2>
+
+            {description && <p>{description}</p>}
+          </div>
+
+          <button
+            type="button"
+            className="modal-close"
+            onClick={onClose}
+            aria-label="Fermer"
+          >
+            ×
+          </button>
         </div>
-    );
+
+        <div className="modal-body">{children}</div>
+
+        {footer && <div className="modal-footer">{footer}</div>}
+      </div>
+    </div>
+  );
 }
 
 export default Modal;
