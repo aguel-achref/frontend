@@ -1,29 +1,18 @@
-function BoxedText({ value, className, boxWidth = 3, maxLength }) {
-  const chars = (value || "")
-    .toString()
-    .toUpperCase()
-    .replace(/\s+/g, "")
-    .slice(0, maxLength)
-    .split("");
+import { BoxedText, FEES_LABELS, formatAmount, formatDate } from "./Printutils";
 
-  return (
-    <div
-      className={`print-box-row ${className}`}
-      style={{ "--box-width": `${boxWidth}%` }}
-    >
-      {chars.map((char, index) => (
-        <span key={index} className="print-box-char">
-          {char}
-        </span>
-      ))}
-    </div>
-  );
-}
+/*
+  Number of printed boxes on the BIAT form.
+  If your printed R.I.B. row has a different count, change it here.
+*/
+const DEBIT_RIB_BOXES = 20;
+const BENEFICIARY_RIB_BOXES = 26;
 
 function BiatTransferPrint({ transfer, bank, settings }) {
   if (!transfer) {
     return null;
   }
+
+  const currency = transfer.currency || bank?.currency || "";
 
   return (
     <div className="bank-print-page biat-print">
@@ -33,35 +22,37 @@ function BiatTransferPrint({ transfer, bank, settings }) {
         alt="Formulaire BIAT"
       />
 
-      {/* R.I.B. DU DONNEUR D'ORDRE (compte à débiter) */}
+      {/* Référence (à gauche du "93" pré-imprimé) */}
+      <div className="print-field biat-ref">{transfer.reference || ""}</div>
+
+      {/* R.I.B. + code devise */}
       <BoxedText
         className="biat-debit-rib"
         value={transfer.debit_account}
-        boxWidth={2.52}
-        maxLength={20}
+        width={34.44}
+        count={DEBIT_RIB_BOXES}
       />
 
-      {/* CODE DEVISE DU COMPTE */}
       <BoxedText
         className="biat-account-currency"
-        value={transfer.currency || bank?.currency}
-        boxWidth={3.81}
-        maxLength={3}
+        value={currency}
+        width={7.95}
+        count={3}
       />
 
-      {/* DONNEUR D'ORDRE */}
+      {/* Donneur d'ordre */}
       <div className="print-field biat-company-name">
         {settings?.company_name || ""}
       </div>
 
       <div className="print-field biat-company-address">
-        {settings?.address || ""}
+        {[settings?.address, settings?.postal_code, settings?.city]
+          .filter(Boolean)
+          .join(" - ")}
       </div>
 
       <div className="print-field biat-phone">{settings?.phone || ""}</div>
-
       <div className="print-field biat-fax">{settings?.fax || ""}</div>
-
       <div className="print-field biat-telex">{settings?.telex || ""}</div>
 
       <div className="print-field biat-customs-code">
@@ -69,7 +60,7 @@ function BiatTransferPrint({ transfer, bank, settings }) {
       </div>
 
       <div className="print-field biat-rc">
-        {settings?.rc_number || ""}
+        {settings?.rc_number || settings?.rne || ""}
       </div>
 
       <div className="print-field biat-financial-code">
@@ -78,27 +69,27 @@ function BiatTransferPrint({ transfer, bank, settings }) {
 
       <div className="print-field biat-cin">{settings?.cin || ""}</div>
 
-      {/* MODE DE TRANSMISSION : coché en SWIFT */}
+      {/* Mode : Swift */}
       <div className="print-field biat-check-swift">X</div>
 
-      {/* SOMME EN TOUTES LETTRES */}
+      {/* Somme en toutes lettres */}
       <div className="print-field biat-amount-words">
         {transfer.amount_words || ""}
       </div>
 
-      {/* DEVISE + MONTANT EN CHIFFRES */}
+      {/* Devise + montant en chiffres */}
       <BoxedText
         className="biat-amount-currency"
-        value={transfer.currency}
-        boxWidth={3.81}
-        maxLength={3}
+        value={currency}
+        width={7.95}
+        count={3}
       />
 
-      <div className="print-field print-amount biat-amount">
-        {transfer.amount || ""}
+      <div className="print-field biat-amount">
+        {formatAmount(transfer.amount, currency)}
       </div>
 
-      {/* BENEFICIAIRE */}
+      {/* Bénéficiaire */}
       <div className="print-field biat-beneficiary-name">
         {transfer.beneficiary_name || ""}
       </div>
@@ -119,29 +110,26 @@ function BiatTransferPrint({ transfer, bank, settings }) {
         {transfer.beneficiary_country || ""}
       </div>
 
-      {/* RIB BENEFICIAIRE */}
       <BoxedText
         className="biat-beneficiary-rib"
         value={transfer.beneficiary_iban}
-        boxWidth={2.86}
-        maxLength={24}
+        width={58}
+        count={BENEFICIARY_RIB_BOXES}
       />
 
-      <div className="print-field biat-purpose">
-        {transfer.purpose || ""}
-      </div>
+      <div className="print-field biat-purpose">{transfer.purpose || ""}</div>
 
       <div className="print-field biat-beneficiary-address">
         {transfer.beneficiary_address || ""}
       </div>
 
       <div className="print-field biat-fees-instructions">
-        {transfer.fees || ""}
+        {FEES_LABELS[transfer.fees] || transfer.fees || ""}
       </div>
 
-      {/* DATE DE L'ORDRE (ligne "Tunis, le ...") */}
+      {/* Tunis, le ... */}
       <div className="print-field biat-order-date">
-        {transfer.transfer_date || ""}
+        {formatDate(transfer.transfer_date)}
       </div>
     </div>
   );

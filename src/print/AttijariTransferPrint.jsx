@@ -1,75 +1,110 @@
+import { formatAmount, formatDate } from "./Printutils";
+
+/*
+  The 12 IBAN boxes of the Attijari form (left / width in % of the page).
+  Each box receives 2 characters (24 characters = Tunisian IBAN).
+*/
+const IBAN_BOXES = [
+  [20.06, 4.45],
+  [25.07, 5.3],
+  [30.94, 5.68],
+  [37.28, 5.77],
+  [43.61, 5.68],
+  [49.95, 5.58],
+  [56.2, 5.68],
+  [62.53, 5.68],
+  [68.88, 5.77],
+  [75.31, 6.53],
+  [82.5, 5.87],
+  [89.03, 5.96],
+];
+
+function splitIban(value) {
+  const clean = (value || "").toString().replace(/\s+/g, "").toUpperCase();
+
+  return IBAN_BOXES.map((_, index) => {
+    if (index === IBAN_BOXES.length - 1) {
+      return clean.slice(index * 2);
+    }
+
+    return clean.slice(index * 2, index * 2 + 2);
+  });
+}
+
 function AttijariTransferPrint({ transfer, bank, settings }) {
   if (!transfer) {
     return null;
   }
 
-  const companyName = settings?.company_name || "SOCIETE LEO MINOR TUNISIE";
-
-  const companyAddress = settings?.address || "";
-
-  const companyCity = settings?.city || "";
-
-  const companyPostalCode = settings?.postal_code || "";
-
-  const companyRne = settings?.rne || "";
-
-  const companyCustomsCode = settings?.customs_code || "";
+  const currency = transfer.currency || "";
+  const fees = String(transfer.fees || "").toUpperCase();
+  const ibanGroups = splitIban(transfer.beneficiary_iban);
 
   return (
     <div className="bank-print-page attijari-print">
-      {/* IMAGE DU FORMULAIRE */}
       <img
         className="bank-print-background"
         src="/print/attijari.png"
-        alt="Formulaire Attijari"
+        alt="Formulaire Attijari Bank"
       />
 
-      {/* NUMÉRO D'OPÉRATION */}
+      {/* N° d'opération + date */}
       <div className="print-field att-operation-number">
         {transfer.reference || ""}
       </div>
 
-      {/* DATE */}
       <div className="print-field att-operation-date">
-        {transfer.transfer_date || ""}
+        {formatDate(transfer.transfer_date)}
       </div>
 
-      {/* DONNEUR D'ORDRE */}
-      <div className="print-field att-company-name">{companyName}</div>
+      {/* 1. Donneur d'ordre */}
+      <div className="print-field att-company-name">
+        {settings?.company_name || ""}
+      </div>
 
-      <div className="print-field att-company-address">{companyAddress}</div>
+      <div className="print-field att-company-address">
+        {settings?.address || ""}
+      </div>
 
-      <div className="print-field att-company-city">{companyCity}</div>
+      <div className="print-field att-company-city">{settings?.city || ""}</div>
 
-      <div className="print-field att-company-postal">{companyPostalCode}</div>
+      <div className="print-field att-company-postal">
+        {settings?.postal_code || ""}
+      </div>
 
-      <div className="print-field att-company-rne">{companyRne}</div>
+      <div className="print-field att-company-rne">{settings?.rne || ""}</div>
 
       <div className="print-field att-company-customs">
-        {companyCustomsCode}
+        {settings?.customs_code || ""}
       </div>
 
-      {/* BANQUE */}
-      <div className="print-field att-bank-name">
-        {bank?.name || "Attijari Bank"}
-      </div>
+      {/* 2. Banque / compte à débiter */}
+      <div className="print-field att-bank-name">{bank?.name || ""}</div>
+
+      <div className="print-field att-bank-agency">{bank?.agency || ""}</div>
 
       <div className="print-field att-bank-account">
         {transfer.debit_account || ""}
       </div>
 
       <div className="print-field att-account-currency">
-        {transfer.currency || ""}
+        {bank?.currency || currency}
       </div>
 
-      {/* VIREMENT */}
+      {/* 3. Informations du virement */}
       <div className="print-field att-transfer-date">
-        {transfer.transfer_date || ""}
+        {formatDate(transfer.transfer_date)}
       </div>
 
-      <div className="print-field att-currency">{transfer.currency || ""}</div>
+      <div className="print-field att-currency">{currency}</div>
 
-      <div className="print-field att-amount">{transfer.amount || ""}</div>
+      <div className="print-field att-amount">
+        {formatAmount(transfer.amount, currency)}
+      </div>
+
+      {fees === "SHA" && <div className="print-field att-fees-sha">X</div>}
+      {fees === "OUR" && <div className="print-field att-fees-our">X</div>}
+      {fees === "BEN" && <div className="print-field att-fees-ben">X</div>}
 
       <div className="print-field att-rate">
         {transfer.negotiated_rate || ""}
@@ -85,10 +120,7 @@ function AttijariTransferPrint({ transfer, bank, settings }) {
 
       <div className="print-field att-purpose">{transfer.purpose || ""}</div>
 
-      {/* FRAIS */}
-      <div className="print-field att-fees">{transfer.fees || ""}</div>
-
-      {/* BENEFICIAIRE */}
+      {/* 4. Bénéficiaire */}
       <div className="print-field att-beneficiary-name">
         {transfer.beneficiary_name || ""}
       </div>
@@ -105,9 +137,18 @@ function AttijariTransferPrint({ transfer, bank, settings }) {
         {transfer.beneficiary_country || ""}
       </div>
 
-      <div className="print-field att-beneficiary-iban">
-        {transfer.beneficiary_iban || ""}
-      </div>
+      {ibanGroups.map((group, index) => (
+        <div
+          key={index}
+          className="print-field att-iban-group"
+          style={{
+            left: `${IBAN_BOXES[index][0]}%`,
+            width: `${IBAN_BOXES[index][1]}%`,
+          }}
+        >
+          {group}
+        </div>
+      ))}
 
       <div className="print-field att-beneficiary-bank">
         {transfer.beneficiary_bank || ""}
@@ -121,7 +162,7 @@ function AttijariTransferPrint({ transfer, bank, settings }) {
         {transfer.beneficiary_bank_address || ""}
       </div>
 
-      {/* BANQUE INTERMEDIAIRE */}
+      {/* 5. Banque intermédiaire */}
       <div className="print-field att-intermediary-bank">
         {transfer.intermediary_bank || ""}
       </div>
@@ -130,7 +171,7 @@ function AttijariTransferPrint({ transfer, bank, settings }) {
         {transfer.intermediary_swift || ""}
       </div>
 
-      {/* MONTANT EN LETTRES */}
+      {/* 6. Montant en lettres */}
       <div className="print-field att-amount-words">
         {transfer.amount_words || ""}
       </div>
