@@ -1,4 +1,4 @@
-import { formatAmount, formatDate } from "./Printutils";
+import { amountToWords, formatAmount, formatDate } from "./Printutils";
 
 /*
   The 12 IBAN boxes of the Attijari form (left / width in % of the page).
@@ -173,7 +173,8 @@ function AttijariTransferPrint({ transfer, bank, settings }) {
 
       {/* 6. Montant en lettres */}
       <div className="print-field att-amount-words">
-        {transfer.amount_words || ""}
+        {transfer.amount_words ||
+          amountToWords(transfer.amount, currency)}
       </div>
     </div>
   );
