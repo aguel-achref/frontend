@@ -1,4 +1,10 @@
-import { BoxedText, FEES_LABELS, formatAmount, formatDate } from "./Printutils";
+import {
+  BoxedText,
+  FEES_LABELS,
+  amountToWords,
+  formatAmount,
+  formatDate,
+} from "./Printutils";
 
 /*
   Number of printed boxes on the BIAT form.
@@ -74,7 +80,8 @@ function BiatTransferPrint({ transfer, bank, settings }) {
 
       {/* Somme en toutes lettres */}
       <div className="print-field biat-amount-words">
-        {transfer.amount_words || ""}
+        {transfer.amount_words ||
+          amountToWords(transfer.amount, currency)}
       </div>
 
       {/* Devise + montant en chiffres */}
