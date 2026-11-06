@@ -16,7 +16,7 @@ const EMPTY_FORM = {
   intermediary_swift: "",
 };
 
-const IBAN_LENGTH = 26;
+const IBAN_LENGTH = 29;
 
 function BeneficiaryForm({
   beneficiary = null,
